@@ -1,3 +1,5 @@
+use core::fmt;
+use std::fmt::Write;
 use std::{string, vec};
 mod dto;
 
@@ -5,6 +7,12 @@ struct Building {
     x: usize,
     y: usize,
     Kind: BuildingKind,
+}
+
+impl Building {
+    fn new(x: usize, y: usize, Kind: BuildingKind) -> Self {
+        Self { x, y, Kind }
+    }
 }
 
 enum BuildingKind {
@@ -49,17 +57,16 @@ impl Obstacle {
 }
 
 struct Mine {
-    subtype: u8, //0..3 determines rotation
+    rotation: Rotation,
     resources: Vec<u16>,
 }
 
 impl Mine {
-    pub fn new(subtype: u8, x: usize, y: usize) -> Self {
-        let mine = Mine {
-            subtype,
-            resources: vec![0; 8],
-        };
-        mine
+    fn new(rotation: Rotation, resources: Vec<u16>) -> Self {
+        Self {
+            rotation,
+            resources,
+        }
     }
 }
 
@@ -106,33 +113,95 @@ struct Product {
     points: u8,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
     cell_type: CellType,
     id: Id,
 }
 
 impl Cell {
-    pub fn new(cell_type: CellType, id: Id) -> Self {
+    pub const fn new(cell_type: CellType, id: Id) -> Self {
         Self { cell_type, id }
+    }
+
+    pub fn mine(id: Id) -> [[Option<Cell>; 4]; 4] {
+        fn n(id: Id) -> Option<Cell> {
+            Some(Cell::new(CellType::Inert, id))
+        }
+        fn i(id: Id) -> Option<Cell> {
+            Some(Cell::new(CellType::Input, id))
+        }
+        fn o(id: Id) -> Option<Cell> {
+            Some(Cell::new(CellType::Output, id))
+        }
+
+        [
+            [None, None, None, None],
+            [None, n(id), n(id), None],
+            [i(id), n(id), n(id), o(id)],
+            [None, None, None, None],
+        ]
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
+pub enum Rotation {
+    Up,
+    Right,
+    Down,
+    Left,
+}
+
+pub fn index_rotated<const SIZE: usize>(
+    board: &[[Option<Cell>; SIZE]; SIZE],
+    x: usize,
+    y: usize,
+    rotation: Rotation,
+) -> Option<Cell> {
+    match rotation {
+        Rotation::Up => board[y][x],
+        Rotation::Right => board[SIZE - 1 - x][y],
+        Rotation::Down => board[SIZE - 1 - y][SIZE - 1 - x],
+        Rotation::Left => board[SIZE - 1 - x][y],
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Id(i16);
 
-#[derive(Clone, Copy, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CellType {
     Input,
     Output,
-    #[default]
     Inert,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Board {
     width: usize,
     height: usize,
     board: [[Option<Cell>; 100]; 100],
+}
+
+impl fmt::Debug for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for y in 0..self.width {
+            for x in 0..self.height {
+                match self.board[y][x] {
+                    Some(c) => match c.cell_type {
+                        CellType::Input => write!(f, "in ")?,
+                        CellType::Output => write!(f, "out")?,
+                        CellType::Inert => write!(f, " x ")?,
+                    },
+                    None => write!(f, " . ",)?,
+                }
+                f.write_str(" ")?;
+            }
+            f.write_char('\n')?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Board {
@@ -164,27 +233,62 @@ impl Board {
                     }
                 }
             }
-            BuildingKind::Mine(mine) => match mine.subtype {
-                0 => {
-                    self.board[building.x][building.y] = Some(Cell::new(CellType::Inert, id));
-                    self.board[building.x + 1][building.y] = Some(Cell::new(CellType::Inert, id));
-                    self.board[building.x][building.y + 1] = Some(Cell::new(CellType::Inert, id));
-                    self.board[building.x + 1][building.y + 1] =
-                        Some(Cell::new(CellType::Inert, id));
-                    self.board[building.x - 1][building.y + 1] =
-                        Some(Cell::new(CellType::Input, id));
-                    self.board[building.x + 2][building.y + 1] =
-                        Some(Cell::new(CellType::Output, id));
+            BuildingKind::Mine(mine) => {
+                let mines = Cell::mine(id);
+                for y in 0..mines.len() {
+                    for x in 0..mines[0].len() {
+                        if let Some(c) = index_rotated(&mines, x, y, mine.rotation) {
+                            self.board[building.y + y - 1][building.x + x - 1] = Some(c);
+                        }
+                    }
                 }
-                1 => {}
-                2 => {}
-                3 => {}
-                _ => todo!(),
-            },
+            }
             BuildingKind::Conveyor(_) => todo!(),
             BuildingKind::Combiner(_) => todo!(),
             BuildingKind::Factory(_) => todo!(),
         }
     }
 }
+
 fn main() {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn place_mine_rotated_up() {
+        let id = Id(-1);
+        let mut board = Board::new(10, 10);
+        let building = Building::new(3, 3, BuildingKind::Mine(Mine::new(Rotation::Up, vec![])));
+
+        board.place_building(&building, id);
+
+        let mut expected = Board::new(10, 10);
+        expected.board[building.y][building.x] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y][building.x + 1] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y + 1][building.x] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y + 1][building.x + 1] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y + 1][building.x - 1] = Some(Cell::new(CellType::Input, id));
+        expected.board[building.y + 1][building.x + 2] = Some(Cell::new(CellType::Output, id));
+        assert_eq!(board, expected);
+    }
+
+    #[test]
+    fn place_mine_rotated_right() {
+        let id = Id(-1);
+        let mut board = Board::new(10, 10);
+        let building = Building::new(3, 3, BuildingKind::Mine(Mine::new(Rotation::Right, vec![])));
+
+        board.place_building(&building, id);
+
+        let mut expected = Board::new(10, 10);
+        expected.board[building.y][building.x] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y][building.x + 1] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y + 1][building.x] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y + 1][building.x + 1] = Some(Cell::new(CellType::Inert, id));
+        expected.board[building.y - 1][building.x] = Some(Cell::new(CellType::Input, id));
+        expected.board[building.y + 2][building.x] = Some(Cell::new(CellType::Output, id));
+        assert_eq!(board, expected);
+    }
+}
