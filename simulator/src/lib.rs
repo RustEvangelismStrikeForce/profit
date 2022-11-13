@@ -1,21 +1,20 @@
 use core::fmt;
 use std::fmt::Write;
-use std::{string, vec};
 mod dto;
 
-struct Building {
-    x: usize,
-    y: usize,
-    Kind: BuildingKind,
+pub struct Building {
+    pub x: usize,
+    pub y: usize,
+    pub kind: BuildingKind,
 }
 
 impl Building {
-    fn new(x: usize, y: usize, Kind: BuildingKind) -> Self {
-        Self { x, y, Kind }
+    pub fn new(x: usize, y: usize, kind: BuildingKind) -> Self {
+        Self { x, y, kind }
     }
 }
 
-enum BuildingKind {
+pub enum BuildingKind {
     Deposit(Deposit),
     Obstacle(Obstacle),
     Mine(Mine),
@@ -25,11 +24,11 @@ enum BuildingKind {
 }
 
 #[derive(Clone)]
-struct Deposit {
-    subtype: u8, //0..7 determines resources
-    width: usize,
-    height: usize,
-    resources: Vec<u16>,
+pub struct Deposit {
+    pub subtype: u8, //0..7 determines resources
+    pub width: usize,
+    pub height: usize,
+    pub resources: Vec<u16>,
 }
 
 impl Deposit {
@@ -44,25 +43,25 @@ impl Deposit {
     }
 }
 
-struct Obstacle {
-    width: usize,
-    height: usize,
+pub struct Obstacle {
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Obstacle {
-    pub fn new(x: usize, y: usize, width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         let obstacle = Obstacle { width, height };
         obstacle
     }
 }
 
-struct Mine {
-    rotation: Rotation,
-    resources: Vec<u16>,
+pub struct Mine {
+    pub rotation: Rotation,
+    pub resources: Vec<u16>,
 }
 
 impl Mine {
-    fn new(rotation: Rotation, resources: Vec<u16>) -> Self {
+    pub fn new(rotation: Rotation, resources: Vec<u16>) -> Self {
         Self {
             rotation,
             resources,
@@ -70,47 +69,47 @@ impl Mine {
     }
 }
 
-struct Conveyor {
-    subtype: u8, //0..7 0..3 are different rotations of length 3 4..7 are different rotations of
+pub struct Conveyor {
+    pub subtype: u8, //0..7 0..3 are different rotations of length 3 4..7 are different rotations of
     //length 4
-    resources: u16,
+    pub resources: u16,
 }
 
 impl Conveyor {
-    pub fn new(subtype: u8, x: usize, y: usize, resources: u16) -> Self {
+    pub fn new(subtype: u8, resources: u16) -> Self {
         let conveyor = Conveyor { subtype, resources };
         conveyor
     }
 }
 
-struct Combiner {
-    subtype: u8, //0..3 determines rotation
-    resources: Vec<u16>,
+pub struct Combiner {
+    pub subtype: u8, //0..3 determines rotation
+    pub resources: Vec<u16>,
 }
 
 impl Combiner {
-    pub fn new(subtype: u8, x: usize, y: usize, resources: Vec<u16>) -> Self {
+    pub fn new(subtype: u8, resources: Vec<u16>) -> Self {
         let combiner = Combiner { subtype, resources };
         combiner
     }
 }
 
-struct Factory {
-    subtype: u8, //0..7 determines produced Product
-    resources: Vec<u16>,
+pub struct Factory {
+    pub subtype: u8, //0..7 determines produced Product
+    pub resources: Vec<u16>,
 }
 
 impl Factory {
-    pub fn new(subtype: u8, x: usize, y: usize, resources: Vec<u16>) -> Self {
+    pub fn new(subtype: u8, resources: Vec<u16>) -> Self {
         let factory = Factory { subtype, resources };
         factory
     }
 }
 
-struct Product {
-    product_type: u8, //0..7
-    resources: Vec<u8>,
-    points: u8,
+pub struct Product {
+    pub product_type: u8, //0..7
+    pub resources: Vec<u8>,
+    pub points: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -215,8 +214,8 @@ impl Board {
         }
     }
 
-    fn place_building(&mut self, building: &Building, id: Id) {
-        match &building.Kind {
+    pub fn place_building(&mut self, building: &Building, id: Id) {
+        match &building.kind {
             BuildingKind::Deposit(deposit) => {
                 for i in 0..deposit.width {
                     for j in 0..deposit.height {
@@ -249,8 +248,6 @@ impl Board {
         }
     }
 }
-
-fn main() {}
 
 #[cfg(test)]
 mod test {
