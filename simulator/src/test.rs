@@ -1,4 +1,4 @@
-use crate::game::*;
+use crate::sim::*;
 
 #[test]
 fn place_mine_rotated_up() {
