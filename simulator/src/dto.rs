@@ -1,21 +1,30 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-struct Object {
-    #[serde(rename = "type")]
-    kind: ObjectKind,
-    #[serde(default)]
-    subtype: u8,
-    x: usize,
-    y: usize,
-    width: Option<usize>,
-    height: Option<usize>,
-    resources: [u16; 8],
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Task {
+    pub width: u8,
+    pub height: u8,
+    pub objects: Vec<Object>,
+    pub products: Vec<Product>,
+    pub turns: usize,
+    pub time: usize,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Object {
+    #[serde(rename = "type")]
+    pub kind: ObjectKind,
+    #[serde(default)]
+    pub subtype: u8,
+    pub x: usize,
+    pub y: usize,
+    pub width: Option<usize>,
+    pub height: Option<usize>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum ObjectKind {
+pub enum ObjectKind {
     Deposit,
     Obstacle,
     Conveyor,
@@ -24,17 +33,9 @@ enum ObjectKind {
     Factory,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Product {
-    #[serde(rename = "type")]
-    subtype: u8,
-    resources: [u16; 8],
-    points: usize,
-}
-
-struct Game {
-    width: u8,
-    height: u8,
-    objects: Vec<Object>,
-    products: Vec<Product>,
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Product {
+    pub subtype: u8,
+    pub resources: [u16; 8],
+    pub points: usize,
 }
