@@ -11,6 +11,11 @@ pub struct Task {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Solution {
+    pub objects: Vec<Object>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Object {
     #[serde(rename = "type")]
     pub kind: ObjectKind,
@@ -20,6 +25,10 @@ pub struct Object {
     pub y: usize,
     pub width: Option<usize>,
     pub height: Option<usize>,
+}
+
+impl Object {
+    pub fn new(kind: ObjectKind, x: usize, y: usize, subtype: u8, width: Option<usize>, height: Option<usize>) -> Self { Self { kind, subtype, x, y, width, height } }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
