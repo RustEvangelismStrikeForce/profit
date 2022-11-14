@@ -209,18 +209,28 @@ impl Sim {
             board,
         }
     }
+
+    pub fn building(&self, id: Id) -> &Building {
+        if id.0 < 0 {
+            &self.given[(id.0 + 1).abs() as usize]
+        } else {
+            &self.placed[id.0 as usize]
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Building {
-    pub x: i8,
-    pub y: i8,
+    pub pos: Pos,
     pub kind: BuildingKind,
 }
 
 impl Building {
     pub fn new(x: i8, y: i8, kind: BuildingKind) -> Self {
-        Self { x, y, kind }
+        Self {
+            pos: Pos { x, y },
+            kind,
+        }
     }
 }
 
@@ -323,6 +333,12 @@ impl Factory {
 pub struct Product {
     pub resources: Resources,
     pub points: u32,
+}
+
+impl Product {
+    pub fn new(resources: Resources, points: u32) -> Self {
+        Self { resources, points }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -550,54 +566,42 @@ pub fn place_building(sim: &mut Sim, building: &Building, id: Id) -> crate::Resu
             BuildingKind::Deposit(deposit) => {
                 for y in 0..deposit.height {
                     for x in 0..deposit.width {
-                        place_cell(
-                            sim,
-                            pos(building.x + x as i8, building.y + y as i8),
-                            Cell::output(id),
-                        )?;
+                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
                     }
                 }
             }
             BuildingKind::Obstacle(obstacle) => {
                 for y in 0..obstacle.height {
                     for x in 0..obstacle.width {
-                        place_cell(
-                            sim,
-                            pos(building.x + x as i8, building.y + y as i8),
-                            Cell::output(id),
-                        )?;
+                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
                     }
                 }
             }
             BuildingKind::Mine(mine) => {
                 for (pos, ty) in MINE_CELLS[mine.rotation as usize] {
-                    place_cell(sim, pos, Cell::new(ty, id))?;
+                    place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
                 }
             }
             BuildingKind::Conveyor(conveyor) => {
                 if conveyor.big {
                     for (pos, ty) in BIG_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, pos, Cell::new(ty, id))?;
+                        place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
                     }
                 } else {
                     for (pos, ty) in SMALL_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, pos, Cell::new(ty, id))?;
+                        place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
                     }
                 }
             }
             BuildingKind::Combiner(combiner) => {
                 for (pos, ty) in COMBINER_CELLS[combiner.rotation as usize] {
-                    place_cell(sim, pos, Cell::new(ty, id))?;
+                    place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
                 }
             }
             BuildingKind::Factory(_) => {
                 for y in 0..FACTORY_SIZE {
                     for x in 0..FACTORY_SIZE {
-                        place_cell(
-                            sim,
-                            pos(building.x + x as i8, building.y + y as i8),
-                            Cell::output(id),
-                        )?;
+                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
                     }
                 }
             }
@@ -627,8 +631,15 @@ fn place_cell(sim: &mut Sim, pos: Pos, cell: Cell) -> crate::Result<()> {
         return Err(Error::OutOfBounds);
     }
 
-    if sim.board[pos].is_some() {
-        return Err(Error::CellNotEmpty);
+    if let Some(other) = sim.board[pos] {
+        match (&sim.building(other.id).kind, &sim.building(cell.id).kind) {
+            (BuildingKind::Conveyor(_), BuildingKind::Conveyor(_))
+                if cell.cell_type != CellType::Inert || other.cell_type != CellType::Inert =>
+            {
+                ()
+            }
+            _ => return Err(Error::CellNotEmpty),
+        }
     }
 
     sim.board[pos] = Some(cell);
