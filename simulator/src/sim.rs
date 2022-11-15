@@ -190,32 +190,25 @@ pub const COMBINER_CELLS: [[(Pos, CellType); 7]; 4] = [
 
 pub struct Sim {
     pub products: [Product; 8],
-    pub given: Vec<Building>,
-    pub placed: Vec<Building>,
+    pub buildings: Vec<Building>,
     pub board: Board,
 }
 
 impl Sim {
-    pub fn new(
-        products: [Product; 8],
-        given: Vec<Building>,
-        placed: Vec<Building>,
-        board: Board,
-    ) -> Self {
+    pub fn new(products: [Product; 8], buildings: Vec<Building>, board: Board) -> Self {
         Self {
             products,
-            given,
-            placed,
+            buildings,
             board,
         }
     }
 
+    pub fn next_id(&self) -> Id {
+        Id(self.buildings.len() as u16)
+    }
+
     pub fn building(&self, id: Id) -> &Building {
-        if id.0 < 0 {
-            &self.given[(id.0 + 1).abs() as usize]
-        } else {
-            &self.placed[id.0 as usize]
-        }
+        &self.buildings[id.0 as usize]
     }
 }
 
@@ -226,11 +219,8 @@ pub struct Building {
 }
 
 impl Building {
-    pub fn new(x: i8, y: i8, kind: BuildingKind) -> Self {
-        Self {
-            pos: Pos { x, y },
-            kind,
-        }
+    pub fn new(pos: Pos, kind: BuildingKind) -> Self {
+        Self { pos, kind }
     }
 }
 
@@ -496,7 +486,7 @@ impl Cell {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Id(pub i16);
+pub struct Id(pub u16);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CellType {
@@ -560,48 +550,58 @@ pub const fn pos(x: i8, y: i8) -> Pos {
     Pos { x, y }
 }
 
-pub fn place_building(sim: &mut Sim, building: &Building, id: Id) -> crate::Result<()> {
+pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
+    let id = sim.next_id();
+
     let res = || -> crate::Result<()> {
+        sim.buildings.push(building);
+        let building = sim.building(id);
+        let position = building.pos;
+
         match &building.kind {
             BuildingKind::Deposit(deposit) => {
-                for y in 0..deposit.height {
-                    for x in 0..deposit.width {
-                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
+                let height = deposit.height;
+                let width = deposit.width;
+                for y in 0..height {
+                    for x in 0..width {
+                        place_cell(sim, position + pos(x as i8, y as i8), Cell::output(id))?;
                     }
                 }
             }
             BuildingKind::Obstacle(obstacle) => {
-                for y in 0..obstacle.height {
-                    for x in 0..obstacle.width {
-                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
+                let height = obstacle.height;
+                let width = obstacle.width;
+                for y in 0..height {
+                    for x in 0..width {
+                        place_cell(sim, position + pos(x as i8, y as i8), Cell::inert(id))?;
                     }
                 }
             }
             BuildingKind::Mine(mine) => {
                 for (pos, ty) in MINE_CELLS[mine.rotation as usize] {
-                    place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
+                    place_cell(sim, position + pos, Cell::new(ty, id))?;
                 }
             }
             BuildingKind::Conveyor(conveyor) => {
                 if conveyor.big {
                     for (pos, ty) in BIG_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
+                        place_cell(sim, position + pos, Cell::new(ty, id))?;
                     }
                 } else {
                     for (pos, ty) in SMALL_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
+                        place_cell(sim, position + pos, Cell::new(ty, id))?;
                     }
                 }
             }
             BuildingKind::Combiner(combiner) => {
                 for (pos, ty) in COMBINER_CELLS[combiner.rotation as usize] {
-                    place_cell(sim, building.pos + pos, Cell::new(ty, id))?;
+                    place_cell(sim, position + pos, Cell::new(ty, id))?;
                 }
             }
             BuildingKind::Factory(_) => {
                 for y in 0..FACTORY_SIZE {
                     for x in 0..FACTORY_SIZE {
-                        place_cell(sim, building.pos + pos(x as i8, y as i8), Cell::output(id))?;
+                        place_cell(sim, position + pos(x as i8, y as i8), Cell::output(id))?;
                     }
                 }
             }

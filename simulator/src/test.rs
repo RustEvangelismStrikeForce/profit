@@ -9,96 +9,92 @@ use crate::{
 #[test]
 fn place_mine_rotated_up() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
 
-    let id = Id(-1);
     let building = Building::new(
-        3,
-        3,
+        pos(3, 3),
         BuildingKind::Mine(Mine::new(Rotation::Up, ResourcePipe::default())),
     );
 
-    place_building(&mut sim, &building, id).unwrap();
+    add_building(&mut sim, building).unwrap();
 
+    let id = Id(0);
     let mut expected = Board::new(10, 10);
-    expected[building.pos] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(0, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(-1, 1)] = Some(Cell::input(id));
-    expected[building.pos + pos(2, 1)] = Some(Cell::output(id));
+    expected[pos(3, 3)] = Some(Cell::inert(id));
+    expected[pos(3, 4)] = Some(Cell::inert(id));
+    expected[pos(4, 3)] = Some(Cell::inert(id));
+    expected[pos(4, 4)] = Some(Cell::inert(id));
+    expected[pos(2, 4)] = Some(Cell::input(id));
+    expected[pos(5, 4)] = Some(Cell::output(id));
     assert_eq!(sim.board, expected);
 }
 
 #[test]
 fn place_mine_rotated_right() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
 
-    let id = Id(-1);
     let building = Building::new(
-        3,
-        3,
+        pos(3, 3),
         BuildingKind::Mine(Mine::new(Rotation::Right, ResourcePipe::default())),
     );
 
-    place_building(&mut sim, &building, id).unwrap();
+    add_building(&mut sim, building).unwrap();
 
+    let id = Id(0);
     let mut expected = Board::new(10, 10);
-    expected[building.pos + pos(0, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(0, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(0, -1)] = Some(Cell::input(id));
-    expected[building.pos + pos(0, 2)] = Some(Cell::output(id));
+    expected[pos(3, 3)] = Some(Cell::inert(id));
+    expected[pos(3, 4)] = Some(Cell::inert(id));
+    expected[pos(4, 3)] = Some(Cell::inert(id));
+    expected[pos(4, 4)] = Some(Cell::inert(id));
+    expected[pos(3, 2)] = Some(Cell::input(id));
+    expected[pos(3, 5)] = Some(Cell::output(id));
     assert_eq!(sim.board, expected);
 }
 
 #[test]
 fn place_mine_rotated_down() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
 
-    let id = Id(-1);
     let building = Building::new(
-        3,
-        3,
+        pos(3, 3),
         BuildingKind::Mine(Mine::new(Rotation::Down, ResourcePipe::default())),
     );
 
-    place_building(&mut sim, &building, id).unwrap();
+    add_building(&mut sim, building).unwrap();
 
+    let id = Id(0);
     let mut expected = Board::new(10, 10);
-    expected[building.pos + pos(0, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(0, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(2, 0)] = Some(Cell::input(id));
-    expected[building.pos + pos(-1, 0)] = Some(Cell::output(id));
+    expected[pos(3, 3)] = Some(Cell::inert(id));
+    expected[pos(3, 4)] = Some(Cell::inert(id));
+    expected[pos(4, 3)] = Some(Cell::inert(id));
+    expected[pos(4, 4)] = Some(Cell::inert(id));
+    expected[pos(5, 3)] = Some(Cell::input(id));
+    expected[pos(2, 3)] = Some(Cell::output(id));
     assert_eq!(sim.board, expected);
 }
 
 #[test]
 fn place_mine_rotated_left() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
 
-    let id = Id(-1);
     let building = Building::new(
-        3,
-        3,
+        pos(3, 3),
         BuildingKind::Mine(Mine::new(Rotation::Left, ResourcePipe::default())),
     );
 
-    place_building(&mut sim, &building, id).unwrap();
+    add_building(&mut sim, building).unwrap();
 
+    let id = Id(0);
     let mut expected = Board::new(10, 10);
-    expected[building.pos + pos(0, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 0)] = Some(Cell::inert(id));
-    expected[building.pos + pos(0, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 1)] = Some(Cell::inert(id));
-    expected[building.pos + pos(1, 2)] = Some(Cell::input(id));
-    expected[building.pos + pos(1, -1)] = Some(Cell::output(id));
+    expected[pos(3, 3)] = Some(Cell::inert(id));
+    expected[pos(3, 4)] = Some(Cell::inert(id));
+    expected[pos(4, 3)] = Some(Cell::inert(id));
+    expected[pos(4, 4)] = Some(Cell::inert(id));
+    expected[pos(4, 5)] = Some(Cell::input(id));
+    expected[pos(4, 2)] = Some(Cell::output(id));
     assert_eq!(sim.board, expected);
 }
 
