@@ -28,7 +28,23 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(kind: ObjectKind, x: usize, y: usize, subtype: u8, width: Option<usize>, height: Option<usize>) -> Self { Self { kind, subtype, x, y, width, height } }
+    pub fn new(
+        kind: ObjectKind,
+        x: usize,
+        y: usize,
+        subtype: u8,
+        width: Option<usize>,
+        height: Option<usize>,
+    ) -> Self {
+        Self {
+            kind,
+            subtype,
+            x,
+            y,
+            width,
+            height,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
