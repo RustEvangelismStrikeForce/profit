@@ -99,7 +99,7 @@ fn place_mine_rotated_left() {
 }
 
 #[test]
-fn serialize_example() {
+fn deserialize_task_001() {
     let file = File::open("../examples/001.task.json").unwrap();
     let serialized: dto::Task = serde_json::from_reader(file).unwrap();
     assert_eq!(
@@ -161,7 +161,7 @@ fn serialize_example() {
 }
 
 #[test]
-fn serialize_example_solution() {
+fn deserialize_solution_001() {
     let file = File::open("../examples/001.solution.json").unwrap();
     let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
     let objects: Vec<dto::Object> = vec![
@@ -177,5 +177,29 @@ fn serialize_example_solution() {
         { Object::new(dto::ObjectKind::Conveyor, 10, 8, 7, None, None) },
         { Object::new(dto::ObjectKind::Conveyor, 10, 4, 7, None, None) },
     ];
+    assert_eq!(serialized, objects)
+}
+
+#[test]
+fn serialize_solution() {
+    let objects: Vec<dto::Object> = vec![
+        { Object::new(dto::ObjectKind::Combiner, 9, 1, 3, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 11, 0, 4, None, None) },
+        { Object::new(dto::ObjectKind::Mine, 19, 3, 2, None, None) },
+        { Object::new(dto::ObjectKind::Factory, 13, 3, 0, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 14, 1, 1, None, None) },
+        { Object::new(dto::ObjectKind::Mine, 5, 12, 3, None, None) },
+        { Object::new(dto::ObjectKind::Mine, 6, 5, 0, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 9, 4, 7, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 7, 10, 4, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 10, 8, 7, None, None) },
+        { Object::new(dto::ObjectKind::Conveyor, 10, 4, 7, None, None) },
+    ];
+
+    let file = File::create("../target/test.json").unwrap();
+    serde_json::to_writer(file, &objects).unwrap();
+
+    let file = File::open("../target/test.json").unwrap();
+    let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
     assert_eq!(serialized, objects)
 }
