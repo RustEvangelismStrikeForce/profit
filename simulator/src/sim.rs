@@ -441,7 +441,7 @@ impl Building {
                 deposit.resources -= num;
 
                 let mut res = Resources::default();
-                res.values[deposit.product_type as usize] += num;
+                res.values[deposit.resource_type as usize] += num;
                 res
             }
             BuildingKind::Obstacle(_) => panic!("Obstacles cannot contain resources"),
@@ -465,16 +465,16 @@ pub enum BuildingKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Deposit {
-    pub product_type: ProductType,
+    pub resource_type: ResourceType,
     pub width: u8,
     pub height: u8,
     pub resources: u16,
 }
 
 impl Deposit {
-    pub fn new(product_type: ProductType, width: u8, height: u8, resources: u16) -> Self {
+    pub fn new(resource_type: ResourceType, width: u8, height: u8, resources: u16) -> Self {
         Self {
-            product_type,
+            resource_type,
             width,
             height,
             resources,
@@ -562,6 +562,18 @@ impl Product {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProductType {
+    Type0 = 0,
+    Type1 = 1,
+    Type2 = 2,
+    Type3 = 3,
+    Type4 = 4,
+    Type5 = 5,
+    Type6 = 6,
+    Type7 = 7,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResourceType {
     Type0 = 0,
     Type1 = 1,
     Type2 = 2,
