@@ -18,6 +18,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "profit_cli"
+version = "0.1.0"
+dependencies = [
+ "profit_sim",
+]
+
+[[package]]
+name = "profit_sim"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -61,15 +77,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "simulator"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_derive",
- "serde_json",
 ]
 
 [[package]]

@@ -1,4 +1,5 @@
 pub use error::*;
+pub use sim::*;
 
 mod dto;
 mod error;
