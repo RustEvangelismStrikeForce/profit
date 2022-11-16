@@ -27,26 +27,6 @@ pub struct Object {
     pub height: Option<usize>,
 }
 
-impl Object {
-    pub fn new(
-        kind: ObjectKind,
-        x: usize,
-        y: usize,
-        subtype: u8,
-        width: Option<usize>,
-        height: Option<usize>,
-    ) -> Self {
-        Self {
-            kind,
-            subtype,
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ObjectKind {

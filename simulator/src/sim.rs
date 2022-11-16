@@ -490,8 +490,7 @@ pub struct Obstacle {
 
 impl Obstacle {
     pub fn new(width: u8, height: u8) -> Self {
-        let obstacle = Obstacle { width, height };
-        obstacle
+        Self { width, height }
     }
 }
 
