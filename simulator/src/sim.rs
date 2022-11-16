@@ -746,10 +746,10 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(input: Id, output: Id) -> Self {
+    pub fn new(output: Id, input: Id) -> Self {
         Self {
-            input,
             output,
+            input,
             resources: Resources::default(),
         }
     }
@@ -1002,7 +1002,10 @@ fn check_connection(
         BuildingKind::Deposit(_) => match &building_b.kind {
             BuildingKind::Deposit(_) => unreachable!(),
             BuildingKind::Obstacle(_) => unreachable!(),
-            BuildingKind::Mine(_) => Ok(add_connection(sim, output.id, input.id)),
+            BuildingKind::Mine(_) => {
+                sim.connections.push(Connection::new(output.id, input.id));
+                Ok(())
+            }
             BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
                 Err(Error::DepositEgress(input_pos))
             }
@@ -1013,7 +1016,18 @@ fn check_connection(
             BuildingKind::Obstacle(_) => unreachable!(),
             BuildingKind::Mine(_) => Err(Error::MineEgress(output_pos)),
             BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
-                Ok(add_connection(sim, output.id, input.id))
+                for c in sim.connections.iter() {
+                    if c.output == output.id {
+                        if c.input == input.id {
+                            return Ok(());
+                        } else {
+                            return Err(Error::MultipleIngresses(output_pos));
+                        }
+                    }
+                }
+
+                sim.connections.push(Connection::new(output.id, input.id));
+                Ok(())
             }
         },
         BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) => match &building_b.kind {
@@ -1022,28 +1036,21 @@ fn check_connection(
             BuildingKind::Mine(_)
             | BuildingKind::Conveyor(_)
             | BuildingKind::Combiner(_)
-            | BuildingKind::Factory(_) => Ok(add_connection(sim, output.id, input.id)),
+            | BuildingKind::Factory(_) => {
+                for c in sim.connections.iter() {
+                    if c.output == output.id {
+                        if c.input == input.id {
+                            return Ok(());
+                        } else {
+                            return Err(Error::MultipleIngresses(output_pos));
+                        }
+                    }
+                }
+
+                sim.connections.push(Connection::new(output.id, input.id));
+                Ok(())
+            }
         },
         BuildingKind::Factory(_) => unreachable!(),
-    }
-}
-
-fn add_connection(sim: &mut Sim, output: Id, input: Id) {
-    for c in sim.connections.iter() {
-        if c.output == output {
-            if c.input == input {
-                break;
-            } else {
-                todo!("some buildings can't have multiple inputs connected to their output");
-            }
-        }
-    }
-
-    if !sim
-        .connections
-        .iter()
-        .any(|c| c.input == input && c.output == output)
-    {
-        sim.connections.push(Connection::new(input, output));
     }
 }
