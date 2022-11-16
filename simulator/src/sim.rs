@@ -9,182 +9,386 @@ use std::fmt::Write;
 use crate::Error;
 
 pub const RESOURCE_TYPES: usize = 8;
-pub const FACTORY_SIZE: usize = 5;
+pub const FACTORY_SIZE: i8 = 5;
 
-pub const MINE_CELLS: [[(Pos, CellType); 6]; 4] = [
-    //
-    //  #o
-    // +oo-
-    //
+pub const MINE_CELLS: [[(Pos, CellKind); 6]; 4] = [
+    //   # o
+    // + o o -
     [
-        (pos(-1, 1), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, 1), CellType::Inert),
-        (pos(2, 1), CellType::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(-1, 1), CellKind::Input),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, 1), CellKind::Inert),
+        (pos(2, 1), CellKind::Output),
     ],
     // +
-    // #o
-    // oo
+    // # o
+    // o o
     // -
     [
-        (pos(0, -1), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, 1), CellType::Inert),
-        (pos(0, 2), CellType::Output),
+        (pos(0, -1), CellKind::Input),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, 1), CellKind::Inert),
+        (pos(0, 2), CellKind::Output),
     ],
-    //
-    // -#o+
-    //  oo
-    //
+    // - # o +
+    //   o o
     [
-        (pos(-1, 0), CellType::Output),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, 1), CellType::Inert),
-        (pos(2, 0), CellType::Input),
+        (pos(-1, 0), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, 1), CellKind::Inert),
+        (pos(2, 0), CellKind::Input),
     ],
-    //  -
-    // #o
-    // oo
-    //  +
+    //   -
+    // # o
+    // o o
+    //   +
     [
-        (pos(1, 2), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, 1), CellType::Inert),
-        (pos(1, -1), CellType::Output),
+        (pos(1, -1), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, 1), CellKind::Inert),
+        (pos(1, 2), CellKind::Input),
+    ],
+];
+pub const ADJACENT_MINE_CELLS: [[(Pos, Pos); 6]; 4] = [
+    //   ? # o ?
+    // ? + o o - ?
+    //   ?     ?
+    [
+        (pos(-1, 0), pos(-1, 1)),
+        (pos(2, 0), pos(2, 1)),
+        (pos(-2, 1), pos(-1, 1)),
+        (pos(3, 1), pos(2, 1)),
+        (pos(-1, 2), pos(-1, 1)),
+        (pos(2, 2), pos(2, 1)),
+    ],
+    //   ?
+    // ? + ?
+    //   # o
+    //   o o
+    // ? - ?
+    //   ?
+    [
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-1, 2), pos(0, 2)),
+        (pos(1, 2), pos(0, 2)),
+        (pos(0, 3), pos(0, 2)),
+    ],
+    //   ?     ?
+    // ? - # o + ?
+    //   ? o o ?
+    [
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(2, -1), pos(2, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(3, 0), pos(2, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(2, 1), pos(2, 0)),
+    ],
+    //   ?
+    // ? - ?
+    // # o
+    // o o
+    // ? + ?
+    //   ?
+    [
+        (pos(1, -2), pos(1, -1)),
+        (pos(0, -1), pos(1, -1)),
+        (pos(2, -1), pos(1, -1)),
+        (pos(0, 2), pos(1, 2)),
+        (pos(2, 2), pos(1, 2)),
+        (pos(1, 3), pos(1, 2)),
     ],
 ];
 
-pub const SMALL_CONVEYOR_CELLS: [[(Pos, CellType); 3]; 4] = [
-    //
-    // +#-
-    //
+pub const SMALL_CONVEYOR_CELLS: [[(Pos, CellKind); 3]; 4] = [
+    // + # -
     [
-        (pos(-1, 0), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Output),
+        (pos(-1, 0), CellKind::Input),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Output),
     ],
     // +
     // #
     // -
     [
-        (pos(0, -1), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Output),
+        (pos(0, -1), CellKind::Input),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Output),
     ],
-    //
-    // -#+
-    //
+    // - # +
     [
-        (pos(-1, 0), CellType::Output),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Input),
+        (pos(-1, 0), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Input),
     ],
     // -
     // #
     // +
     [
-        (pos(0, -1), CellType::Output),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Input),
+        (pos(0, -1), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Input),
     ],
 ];
-pub const BIG_CONVEYOR_CELLS: [[(Pos, CellType); 4]; 4] = [
-    //
-    // +#o-
-    //
-    //
+pub const ADJACENT_SMALL_CONVEYOR_CELLS: [[(Pos, Pos); 6]; 4] = [
+    //   ?   ?
+    // ? + # - ?
+    //   ?   ?
     [
-        (pos(-1, 0), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(2, 0), CellType::Output),
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(1, -1), pos(1, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(2, 0), pos(1, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(1, 1), pos(1, 0)),
+    ],
+    //   ?
+    // ? + ?
+    //   #
+    // ? - ?
+    //   ?
+    [
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-1, 1), pos(0, 1)),
+        (pos(1, 1), pos(0, 1)),
+        (pos(0, 2), pos(0, 1)),
+    ],
+    //   ?   ?
+    // ? - # + ?
+    //   ?   ?
+    [
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(1, -1), pos(1, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(2, 0), pos(1, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(1, 1), pos(1, 0)),
+    ],
+    //   ?
+    // ? - ?
+    //   #
+    // ? + ?
+    //   ?
+    [
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-1, 1), pos(0, 1)),
+        (pos(1, 1), pos(0, 1)),
+        (pos(0, 2), pos(0, 1)),
+    ],
+];
+
+pub const BIG_CONVEYOR_CELLS: [[(Pos, CellKind); 4]; 4] = [
+    // + # o -
+    [
+        (pos(-1, 0), CellKind::Input),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(2, 0), CellKind::Output),
     ],
     // +
     // #
     // o
     // -
     [
-        (pos(0, -1), CellType::Input),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(0, 2), CellType::Output),
+        (pos(0, -1), CellKind::Input),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(0, 2), CellKind::Output),
     ],
-    //
-    // -#o+
-    //
+    // - # o +
     [
-        (pos(-1, 0), CellType::Output),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(2, 0), CellType::Input),
+        (pos(-1, 0), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(2, 0), CellKind::Input),
     ],
     // -
     // #
     // o
     // +
     [
-        (pos(0, -1), CellType::Output),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(0, 2), CellType::Input),
+        (pos(0, -1), CellKind::Output),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(0, 2), CellKind::Input),
     ],
 ];
-pub const COMBINER_CELLS: [[(Pos, CellType); 7]; 4] = [
-    // +o
-    // +#-
-    // +o
+pub const ADJACENT_BIG_CONVEYOR_CELLS: [[(Pos, Pos); 6]; 4] = [
+    //   ?     ?
+    // ? + # o - ?
+    //   ?     ?
     [
-        (pos(-1, -1), CellType::Input),
-        (pos(-1, 0), CellType::Input),
-        (pos(-1, 1), CellType::Input),
-        (pos(0, -1), CellType::Inert),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, 0), CellType::Output),
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(2, -1), pos(2, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(3, 0), pos(2, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(2, 1), pos(2, 0)),
     ],
-    // +++
-    // o#o
-    //  -
+    //   ?
+    // ? + ?
+    //   #
+    //   o
+    // ? - ?
+    //   ?
     [
-        (pos(-1, -1), CellType::Input),
-        (pos(0, -1), CellType::Input),
-        (pos(1, -1), CellType::Input),
-        (pos(-1, 0), CellType::Inert),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(0, 1), CellType::Output),
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-1, 2), pos(0, 2)),
+        (pos(1, 2), pos(0, 2)),
+        (pos(0, 3), pos(0, 2)),
     ],
-    //  o+
-    // -#+
-    //  o+
+    //   ?     ?
+    // ? - # o + ?
+    //   ?     ?
     [
-        (pos(-1, 0), CellType::Output),
-        (pos(0, -1), CellType::Inert),
-        (pos(0, 0), CellType::Inert),
-        (pos(0, 1), CellType::Inert),
-        (pos(1, -1), CellType::Input),
-        (pos(1, 0), CellType::Input),
-        (pos(1, 1), CellType::Input),
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(2, -1), pos(2, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(3, 0), pos(2, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(2, 1), pos(2, 0)),
     ],
-    //  -
-    // o#o
-    // +++
+    //   ?
+    // ? - ?
+    //   #
+    //   o
+    // ? + ?
+    //   ?
     [
-        (pos(0, 1), CellType::Output),
-        (pos(-1, 0), CellType::Inert),
-        (pos(0, 0), CellType::Inert),
-        (pos(1, 0), CellType::Inert),
-        (pos(-1, 1), CellType::Input),
-        (pos(0, 1), CellType::Input),
-        (pos(1, 1), CellType::Input),
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-1, 2), pos(0, 2)),
+        (pos(1, 2), pos(0, 2)),
+        (pos(0, 3), pos(0, 2)),
+    ],
+];
+pub const COMBINER_CELLS: [[(Pos, CellKind); 7]; 4] = [
+    // + o
+    // + # -
+    // + o
+    [
+        (pos(-1, -1), CellKind::Input),
+        (pos(-1, 0), CellKind::Input),
+        (pos(-1, 1), CellKind::Input),
+        (pos(0, -1), CellKind::Inert),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, 0), CellKind::Output),
+    ],
+    // + + +
+    // o # o
+    //   -
+    [
+        (pos(-1, -1), CellKind::Input),
+        (pos(0, -1), CellKind::Input),
+        (pos(1, -1), CellKind::Input),
+        (pos(-1, 0), CellKind::Inert),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Output),
+    ],
+    //   o +
+    // - # +
+    //   o +
+    [
+        (pos(-1, 0), CellKind::Output),
+        (pos(0, -1), CellKind::Inert),
+        (pos(0, 0), CellKind::Inert),
+        (pos(0, 1), CellKind::Inert),
+        (pos(1, -1), CellKind::Input),
+        (pos(1, 0), CellKind::Input),
+        (pos(1, 1), CellKind::Input),
+    ],
+    //   -
+    // o # o
+    // + + +
+    [
+        (pos(0, -1), CellKind::Output),
+        (pos(-1, 0), CellKind::Inert),
+        (pos(0, 0), CellKind::Inert),
+        (pos(1, 0), CellKind::Inert),
+        (pos(-1, 1), CellKind::Input),
+        (pos(0, 1), CellKind::Input),
+        (pos(1, 1), CellKind::Input),
+    ],
+];
+pub const ADJACENT_COMBINER_CELLS: [[(Pos, Pos); 8]; 4] = [
+    //   ?
+    // ? + o ?
+    // ? + # - ?
+    // ? + o ?
+    //   ?
+    [
+        (pos(-1, -2), pos(-1, -1)),
+        (pos(-2, -1), pos(-1, -1)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(-2, 1), pos(-1, 1)),
+        (pos(-1, 2), pos(-1, 1)),
+        (pos(1, -1), pos(1, 0)),
+        (pos(2, 0), pos(1, 0)),
+        (pos(1, 1), pos(1, 0)),
+    ],
+    //   ? ? ?
+    // ? + + + ?
+    //   o # o
+    //   ? - ?
+    //     ?
+    [
+        (pos(-2, -1), pos(-1, -1)),
+        (pos(-1, -2), pos(-1, -1)),
+        (pos(0, -2), pos(0, -1)),
+        (pos(1, -2), pos(1, -1)),
+        (pos(2, -1), pos(1, -1)),
+        (pos(-1, 1), pos(0, 1)),
+        (pos(1, 1), pos(0, 1)),
+        (pos(0, 2), pos(0, 1)),
+    ],
+    //       ?
+    //   ? o + ?
+    // ? - # + ?
+    //   ? o + ?
+    //       ?
+    [
+        (pos(-1, -1), pos(-1, 0)),
+        (pos(-2, 0), pos(-1, 0)),
+        (pos(-1, 1), pos(-1, 0)),
+        (pos(1, -2), pos(1, -1)),
+        (pos(2, -1), pos(1, -1)),
+        (pos(2, 0), pos(1, 0)),
+        (pos(2, 1), pos(1, 1)),
+        (pos(1, 2), pos(1, 1)),
+    ],
+    //     ?
+    //   ? - ?
+    //   o # o
+    // ? + + + ?
+    //   ? ? ?
+    [
+        (pos(0, -2), pos(0, -1)),
+        (pos(-1, -1), pos(0, -1)),
+        (pos(1, -1), pos(0, -1)),
+        (pos(-2, 1), pos(-1, 1)),
+        (pos(-1, 2), pos(-1, 1)),
+        (pos(0, 2), pos(0, 1)),
+        (pos(1, 2), pos(1, 1)),
+        (pos(2, 1), pos(1, 1)),
     ],
 ];
 
@@ -192,14 +396,21 @@ pub struct Sim {
     pub products: [Product; 8],
     pub buildings: Vec<Building>,
     pub board: Board,
+    pub connections: Vec<Connection>,
 }
 
 impl Sim {
-    pub fn new(products: [Product; 8], buildings: Vec<Building>, board: Board) -> Self {
+    pub fn new(
+        products: [Product; 8],
+        buildings: Vec<Building>,
+        board: Board,
+        connections: Vec<Connection>,
+    ) -> Self {
         Self {
             products,
             buildings,
             board,
+            connections,
         }
     }
 
@@ -222,6 +433,24 @@ impl Building {
     pub fn new(pos: Pos, kind: BuildingKind) -> Self {
         Self { pos, kind }
     }
+
+    pub fn take_resources(&mut self) -> Resources {
+        match &mut self.kind {
+            BuildingKind::Deposit(deposit) => {
+                let num = deposit.resources.max(3);
+                deposit.resources -= num;
+
+                let mut res = Resources::default();
+                res.values[deposit.product_type as usize] += num;
+                res
+            }
+            BuildingKind::Obstacle(_) => panic!("Obstacles cannot contain resources"),
+            BuildingKind::Mine(mine) => std::mem::take(&mut mine.resources),
+            BuildingKind::Conveyor(conveyor) => std::mem::take(&mut conveyor.resources),
+            BuildingKind::Combiner(combiner) => std::mem::take(&mut combiner.resources),
+            BuildingKind::Factory(_) => panic!("Facotories cannot output resources"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -239,11 +468,11 @@ pub struct Deposit {
     pub product_type: ProductType,
     pub width: u8,
     pub height: u8,
-    pub resources: Resources,
+    pub resources: u16,
 }
 
 impl Deposit {
-    pub fn new(product_type: ProductType, width: u8, height: u8, resources: Resources) -> Self {
+    pub fn new(product_type: ProductType, width: u8, height: u8, resources: u16) -> Self {
         Self {
             product_type,
             width,
@@ -269,11 +498,11 @@ impl Obstacle {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mine {
     pub rotation: Rotation,
-    pub resources: ResourcePipe,
+    pub resources: Resources,
 }
 
 impl Mine {
-    pub fn new(rotation: Rotation, resources: ResourcePipe) -> Self {
+    pub fn new(rotation: Rotation, resources: Resources) -> Self {
         Self {
             rotation,
             resources,
@@ -285,11 +514,11 @@ impl Mine {
 pub struct Conveyor {
     pub rotation: Rotation,
     pub big: bool,
-    pub resources: ResourcePipe,
+    pub resources: Resources,
 }
 
 impl Conveyor {
-    pub fn new(rotation: Rotation, big: bool, resources: ResourcePipe) -> Self {
+    pub fn new(rotation: Rotation, big: bool, resources: Resources) -> Self {
         Self {
             rotation,
             big,
@@ -301,7 +530,7 @@ impl Conveyor {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Combiner {
     pub rotation: Rotation,
-    pub resources: ResourcePipe,
+    pub resources: Resources,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -344,18 +573,6 @@ pub enum ProductType {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ResourcePipe {
-    pub input: Resources,
-    pub output: Resources,
-}
-
-impl ResourcePipe {
-    pub fn new(input: Resources, output: Resources) -> Self {
-        Self { input, output }
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Resources {
     pub values: [u16; RESOURCE_TYPES],
 }
@@ -363,10 +580,6 @@ pub struct Resources {
 impl Resources {
     pub fn new(values: [u16; RESOURCE_TYPES]) -> Self {
         Self { values }
-    }
-
-    pub fn clear(&mut self) {
-        self.values = [0; RESOURCE_TYPES];
     }
 }
 
@@ -377,12 +590,13 @@ pub struct Board {
     cells: Vec<Option<Cell>>,
 }
 
-impl std::ops::Index<Pos> for Board {
+impl<P: Into<Pos>> std::ops::Index<P> for Board {
     type Output = Option<Cell>;
 
-    fn index(&self, pos: Pos) -> &Self::Output {
+    fn index(&self, pos: P) -> &Self::Output {
+        let pos = pos.into();
         assert!(
-            pos.x < self.width && pos.y < self.height,
+            pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height,
             "Board index out of bounds"
         );
 
@@ -390,10 +604,11 @@ impl std::ops::Index<Pos> for Board {
     }
 }
 
-impl std::ops::IndexMut<Pos> for Board {
-    fn index_mut(&mut self, pos: Pos) -> &mut Self::Output {
+impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
+    fn index_mut(&mut self, pos: P) -> &mut Self::Output {
+        let pos = pos.into();
         assert!(
-            pos.x < self.width && pos.y < self.height,
+            pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height,
             "Board index out of bounds"
         );
 
@@ -406,10 +621,10 @@ impl fmt::Debug for Board {
         for y in 0..self.width {
             for x in 0..self.height {
                 match self[pos(x, y)] {
-                    Some(c) => match c.cell_type {
-                        CellType::Input => write!(f, "+ ")?,
-                        CellType::Output => write!(f, "- ")?,
-                        CellType::Inert => write!(f, "x ")?,
+                    Some(c) => match c.kind {
+                        CellKind::Input => write!(f, "+ ")?,
+                        CellKind::Output => write!(f, "- ")?,
+                        CellKind::Inert => write!(f, "x ")?,
                     },
                     None => write!(f, ". ",)?,
                 }
@@ -431,49 +646,63 @@ impl Board {
             cells: vec![None; (width * height) as usize],
         }
     }
+
+    pub fn get(&self, pos: impl Into<Pos>) -> Option<Cell> {
+        let pos = pos.into();
+        if pos.x < 0 || pos.x >= self.width {
+            return None;
+        }
+        if pos.y < 0 || pos.y >= self.height {
+            return None;
+        }
+        self[pos]
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
-    cell_type: CellType,
+    kind: CellKind,
     id: Id,
 }
 
 impl Cell {
-    pub const fn new(cell_type: CellType, id: Id) -> Self {
-        Self { cell_type, id }
+    pub const fn new(cell_type: CellKind, id: Id) -> Self {
+        Self {
+            kind: cell_type,
+            id,
+        }
     }
 
     pub fn input(id: Id) -> Self {
         Self {
-            cell_type: CellType::Input,
+            kind: CellKind::Input,
             id,
         }
     }
 
     pub fn output(id: Id) -> Self {
         Self {
-            cell_type: CellType::Output,
+            kind: CellKind::Output,
             id,
         }
     }
 
     pub fn inert(id: Id) -> Self {
         Self {
-            cell_type: CellType::Inert,
+            kind: CellKind::Inert,
             id,
         }
     }
 
     pub fn mine(id: Id) -> [[Option<Cell>; 4]; 4] {
         fn i(id: Id) -> Option<Cell> {
-            Some(Cell::new(CellType::Input, id))
+            Some(Cell::new(CellKind::Input, id))
         }
         fn o(id: Id) -> Option<Cell> {
-            Some(Cell::new(CellType::Output, id))
+            Some(Cell::new(CellKind::Output, id))
         }
         fn n(id: Id) -> Option<Cell> {
-            Some(Cell::new(CellType::Inert, id))
+            Some(Cell::new(CellKind::Inert, id))
         }
 
         [
@@ -489,10 +718,29 @@ impl Cell {
 pub struct Id(pub u16);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum CellType {
+pub enum CellKind {
     Input,
     Output,
     Inert,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Connection {
+    /// Output cell - input of the connection
+    pub output: Id,
+    /// Input cell - output of the connection
+    pub input: Id,
+    pub resources: Resources,
+}
+
+impl Connection {
+    pub fn new(input: Id, output: Id) -> Self {
+        Self {
+            input,
+            output,
+            resources: Resources::default(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -509,10 +757,23 @@ pub struct Pos {
     pub y: i8,
 }
 
-impl std::ops::Add<Pos> for Pos {
+impl fmt::Display for Pos {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+impl From<(i8, i8)> for Pos {
+    fn from((x, y): (i8, i8)) -> Self {
+        Pos { x, y }
+    }
+}
+
+impl<P: Into<Pos>> std::ops::Add<P> for Pos {
     type Output = Pos;
 
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: P) -> Self::Output {
+        let rhs = rhs.into();
         Pos {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
@@ -520,10 +781,11 @@ impl std::ops::Add<Pos> for Pos {
     }
 }
 
-impl std::ops::Sub<Pos> for Pos {
+impl<P: Into<Pos>> std::ops::Sub<P> for Pos {
     type Output = Pos;
 
-    fn sub(self, rhs: Self) -> Self::Output {
+    fn sub(self, rhs: P) -> Self::Output {
+        let rhs = rhs.into();
         Pos {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
@@ -531,17 +793,19 @@ impl std::ops::Sub<Pos> for Pos {
     }
 }
 
-impl std::ops::AddAssign<Pos> for Pos {
-    fn add_assign(&mut self, rhs: Self) {
+impl<P: Into<Pos>> std::ops::AddAssign<P> for Pos {
+    fn add_assign(&mut self, rhs: P) {
+        let rhs = rhs.into();
         self.x += rhs.x;
         self.y += rhs.y;
     }
 }
 
-impl std::ops::SubAssign<Pos> for Pos {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
+impl<P: Into<Pos>> std::ops::SubAssign<P> for Pos {
+    fn sub_assign(&mut self, rhs: P) {
+        let rhs = rhs.into();
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 
@@ -556,16 +820,27 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
     let res = || -> crate::Result<()> {
         sim.buildings.push(building);
         let building = sim.building(id);
-        let position = building.pos;
+        let pos = building.pos;
 
         match &building.kind {
             BuildingKind::Deposit(deposit) => {
-                let height = deposit.height;
-                let width = deposit.width;
-                for y in 0..height {
-                    for x in 0..width {
-                        place_cell(sim, position + pos(x as i8, y as i8), Cell::output(id))?;
+                let height = deposit.height as i8;
+                let width = deposit.width as i8;
+                for y in (pos.y)..(pos.y + height) {
+                    for x in (pos.x)..(pos.x + width) {
+                        place_cell(sim, (x, y), Cell::output(id))?;
                     }
+                }
+
+                for x in (pos.x)..(pos.x + width) {
+                    check_adjacent_cells(sim, (x, pos.y), (x, pos.y - 1))?;
+                }
+                for y in (pos.y)..(pos.y + height) {
+                    check_adjacent_cells(sim, (pos.x, y), (pos.x - 1, y))?;
+                    check_adjacent_cells(sim, (pos.x + width - 1, y), (pos.x + width, y))?;
+                }
+                for x in (pos.x)..(pos.x + width) {
+                    check_adjacent_cells(sim, (x, pos.y + height - 1), (x, pos.y + height))?;
                 }
             }
             BuildingKind::Obstacle(obstacle) => {
@@ -573,36 +848,69 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                 let width = obstacle.width;
                 for y in 0..height {
                     for x in 0..width {
-                        place_cell(sim, position + pos(x as i8, y as i8), Cell::inert(id))?;
+                        place_cell(sim, pos + (x as i8, y as i8), Cell::inert(id))?;
                     }
                 }
             }
             BuildingKind::Mine(mine) => {
-                for (pos, ty) in MINE_CELLS[mine.rotation as usize] {
-                    place_cell(sim, position + pos, Cell::new(ty, id))?;
+                let rot = mine.rotation as usize;
+                for (pos, ty) in MINE_CELLS[rot] {
+                    place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                }
+                for (a, b) in ADJACENT_MINE_CELLS[rot] {
+                    check_adjacent_cells(sim, pos + a, pos + b)?;
                 }
             }
             BuildingKind::Conveyor(conveyor) => {
+                let rot = conveyor.rotation as usize;
                 if conveyor.big {
-                    for (pos, ty) in BIG_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, position + pos, Cell::new(ty, id))?;
+                    for (pos, ty) in BIG_CONVEYOR_CELLS[rot] {
+                        place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                    }
+                    for (a, b) in ADJACENT_BIG_CONVEYOR_CELLS[rot] {
+                        check_adjacent_cells(sim, pos + a, pos + b)?;
                     }
                 } else {
-                    for (pos, ty) in SMALL_CONVEYOR_CELLS[conveyor.rotation as usize] {
-                        place_cell(sim, position + pos, Cell::new(ty, id))?;
+                    for (pos, ty) in SMALL_CONVEYOR_CELLS[rot] {
+                        place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                    }
+                    for (a, b) in ADJACENT_SMALL_CONVEYOR_CELLS[rot] {
+                        check_adjacent_cells(sim, pos + a, pos + b)?;
                     }
                 }
             }
             BuildingKind::Combiner(combiner) => {
-                for (pos, ty) in COMBINER_CELLS[combiner.rotation as usize] {
-                    place_cell(sim, position + pos, Cell::new(ty, id))?;
+                let rot = combiner.rotation as usize;
+                for (pos, ty) in COMBINER_CELLS[rot] {
+                    place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                }
+                for (a, b) in ADJACENT_COMBINER_CELLS[rot] {
+                    check_adjacent_cells(sim, pos + a, pos + b)?;
                 }
             }
             BuildingKind::Factory(_) => {
-                for y in 0..FACTORY_SIZE {
-                    for x in 0..FACTORY_SIZE {
-                        place_cell(sim, position + pos(x as i8, y as i8), Cell::output(id))?;
+                for y in (pos.y)..(pos.y + FACTORY_SIZE) {
+                    for x in (pos.x)..(pos.x + FACTORY_SIZE) {
+                        place_cell(sim, (x, y), Cell::output(id))?;
                     }
+                }
+                for x in (pos.x)..(pos.x + FACTORY_SIZE) {
+                    check_adjacent_cells(sim, (x, pos.y), (x, pos.y - 1))?;
+                }
+                for y in (pos.y)..(pos.y + FACTORY_SIZE) {
+                    check_adjacent_cells(sim, (pos.x, y), (pos.x - 1, y))?;
+                    check_adjacent_cells(
+                        sim,
+                        (pos.x + FACTORY_SIZE - 1, y),
+                        (pos.x + FACTORY_SIZE, y),
+                    )?;
+                }
+                for x in (pos.x)..(pos.x + FACTORY_SIZE) {
+                    check_adjacent_cells(
+                        sim,
+                        (x, pos.y + FACTORY_SIZE - 1),
+                        (x, pos.y + FACTORY_SIZE),
+                    )?;
                 }
             }
         }
@@ -618,31 +926,112 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                 }
             }
         }
+
+        sim.connections.retain(|c| c.input != id && c.output != id);
     }
 
     res
 }
 
-fn place_cell(sim: &mut Sim, pos: Pos, cell: Cell) -> crate::Result<()> {
+fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<()> {
+    let pos = pos.into();
+
     if pos.y < 0 || pos.y >= sim.board.height as i8 {
-        return Err(Error::OutOfBounds);
+        return Err(Error::OutOfBounds(pos));
     }
     if pos.x < 0 || pos.x >= sim.board.width as i8 {
-        return Err(Error::OutOfBounds);
+        return Err(Error::OutOfBounds(pos));
     }
 
     if let Some(other) = sim.board[pos] {
         match (&sim.building(other.id).kind, &sim.building(cell.id).kind) {
             (BuildingKind::Conveyor(_), BuildingKind::Conveyor(_))
-                if cell.cell_type != CellType::Inert || other.cell_type != CellType::Inert =>
-            {
-                ()
-            }
-            _ => return Err(Error::CellNotEmpty),
+                if cell.kind != CellKind::Inert || other.kind != CellKind::Inert => {}
+            _ => return Err(Error::Interseciton(pos)),
         }
     }
 
     sim.board[pos] = Some(cell);
 
     Ok(())
+}
+
+fn check_adjacent_cells(
+    sim: &mut Sim,
+    pos_a: impl Into<Pos>,
+    pos_b: impl Into<Pos>,
+) -> crate::Result<()> {
+    let pos_a = pos_a.into();
+    let pos_b = pos_b.into();
+
+    let (a, b) = match (sim.board.get(pos_a), sim.board.get(pos_b)) {
+        (Some(a), Some(b)) => (a, b),
+        (_, _) => return Ok(()),
+    };
+
+    match (a.kind, b.kind) {
+        (CellKind::Output, CellKind::Input) => check_connection(sim, pos_a, a, pos_b, b),
+        (CellKind::Input, CellKind::Output) => check_connection(sim, pos_b, b, pos_a, a),
+        (_, _) => Ok(()),
+    }
+}
+
+fn check_connection(
+    sim: &mut Sim,
+    output_pos: Pos,
+    output: Cell,
+    input_pos: Pos,
+    input: Cell,
+) -> crate::Result<()> {
+    let building_a = sim.building(output.id);
+    let building_b = sim.building(input.id);
+
+    match &building_a.kind {
+        BuildingKind::Deposit(_) => match &building_b.kind {
+            BuildingKind::Deposit(_) => unreachable!(),
+            BuildingKind::Obstacle(_) => unreachable!(),
+            BuildingKind::Mine(_) => Ok(add_connection(sim, output.id, input.id)),
+            BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
+                Err(Error::DepositEgress(input_pos))
+            }
+        },
+        BuildingKind::Obstacle(_) => unreachable!(),
+        BuildingKind::Mine(_) => match &building_b.kind {
+            BuildingKind::Deposit(_) => unreachable!(),
+            BuildingKind::Obstacle(_) => unreachable!(),
+            BuildingKind::Mine(_) => Err(Error::MineEgress(output_pos)),
+            BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
+                Ok(add_connection(sim, output.id, input.id))
+            }
+        },
+        BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) => match &building_b.kind {
+            BuildingKind::Deposit(_) => unreachable!(),
+            BuildingKind::Obstacle(_) => unreachable!(),
+            BuildingKind::Mine(_)
+            | BuildingKind::Conveyor(_)
+            | BuildingKind::Combiner(_)
+            | BuildingKind::Factory(_) => Ok(add_connection(sim, output.id, input.id)),
+        },
+        BuildingKind::Factory(_) => unreachable!(),
+    }
+}
+
+fn add_connection(sim: &mut Sim, output: Id, input: Id) {
+    for c in sim.connections.iter() {
+        if c.output == output {
+            if c.input == input {
+                break;
+            } else {
+                todo!("some buildings can't have multiple inputs connected to their output");
+            }
+        }
+    }
+
+    if !sim
+        .connections
+        .iter()
+        .any(|c| c.input == input && c.output == output)
+    {
+        sim.connections.push(Connection::new(input, output));
+    }
 }

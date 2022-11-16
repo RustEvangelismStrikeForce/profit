@@ -9,11 +9,11 @@ use crate::{
 #[test]
 fn place_mine_rotated_up() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
 
     let building = Building::new(
         pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Up, ResourcePipe::default())),
+        BuildingKind::Mine(Mine::new(Rotation::Up, Resources::default())),
     );
 
     add_building(&mut sim, building).unwrap();
@@ -32,11 +32,11 @@ fn place_mine_rotated_up() {
 #[test]
 fn place_mine_rotated_right() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
 
     let building = Building::new(
         pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Right, ResourcePipe::default())),
+        BuildingKind::Mine(Mine::new(Rotation::Right, Resources::default())),
     );
 
     add_building(&mut sim, building).unwrap();
@@ -55,11 +55,11 @@ fn place_mine_rotated_right() {
 #[test]
 fn place_mine_rotated_down() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
 
     let building = Building::new(
         pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Down, ResourcePipe::default())),
+        BuildingKind::Mine(Mine::new(Rotation::Down, Resources::default())),
     );
 
     add_building(&mut sim, building).unwrap();
@@ -78,11 +78,11 @@ fn place_mine_rotated_down() {
 #[test]
 fn place_mine_rotated_left() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10));
+    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
 
     let building = Building::new(
         pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Left, ResourcePipe::default())),
+        BuildingKind::Mine(Mine::new(Rotation::Left, Resources::default())),
     );
 
     add_building(&mut sim, building).unwrap();
