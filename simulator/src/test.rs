@@ -9,12 +9,9 @@ use crate::{
 #[test]
 fn place_mine_rotated_up() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
+    let mut sim = Sim::new(products, Board::new(10, 10));
 
-    let building = Building::new(
-        pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Up, Resources::default())),
-    );
+    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Up)));
 
     add_building(&mut sim, building).unwrap();
 
@@ -32,12 +29,9 @@ fn place_mine_rotated_up() {
 #[test]
 fn place_mine_rotated_right() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
+    let mut sim = Sim::new(products, Board::new(10, 10));
 
-    let building = Building::new(
-        pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Right, Resources::default())),
-    );
+    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Right)));
 
     add_building(&mut sim, building).unwrap();
 
@@ -55,12 +49,9 @@ fn place_mine_rotated_right() {
 #[test]
 fn place_mine_rotated_down() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
+    let mut sim = Sim::new(products, Board::new(10, 10));
 
-    let building = Building::new(
-        pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Down, Resources::default())),
-    );
+    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Down)));
 
     add_building(&mut sim, building).unwrap();
 
@@ -78,12 +69,9 @@ fn place_mine_rotated_down() {
 #[test]
 fn place_mine_rotated_left() {
     let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, vec![], Board::new(10, 10), vec![]);
+    let mut sim = Sim::new(products, Board::new(10, 10));
 
-    let building = Building::new(
-        pos(3, 3),
-        BuildingKind::Mine(Mine::new(Rotation::Left, Resources::default())),
-    );
+    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Left)));
 
     add_building(&mut sim, building).unwrap();
 
@@ -96,6 +84,48 @@ fn place_mine_rotated_left() {
     expected[pos(4, 5)] = Some(Cell::input(id));
     expected[pos(4, 2)] = Some(Cell::output(id));
     assert_eq!(sim.board, expected);
+}
+
+#[test]
+fn deposit_mine_factory() {
+    let mut products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
+    products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
+
+    let mut sim = Sim::new(products, Board::new(20, 10));
+
+    add_building(
+        &mut sim,
+        Building::new(
+            pos(0, 0),
+            BuildingKind::Deposit(Deposit::new(ResourceType::Type0, 4, 4)),
+        ),
+    )
+    .unwrap();
+
+    add_building(
+        &mut sim,
+        Building::new(pos(5, 1), BuildingKind::Mine(Mine::new(Rotation::Up))),
+    )
+    .unwrap();
+
+    add_building(
+        &mut sim,
+        Building::new(
+            pos(8, 0),
+            BuildingKind::Factory(Factory::new(ProductType::Type0)),
+        ),
+    )
+    .unwrap();
+
+    let run = run(&mut sim, 100);
+    assert_eq!(
+        run,
+        SimRun {
+            rounds: 29,
+            points: 99,
+            at_turn: 28
+        }
+    );
 }
 
 #[test]

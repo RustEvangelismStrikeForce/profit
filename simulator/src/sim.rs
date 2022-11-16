@@ -9,7 +9,9 @@ use std::fmt::Write;
 use crate::Error;
 
 pub const RESOURCE_TYPES: usize = 8;
+pub const PRODUCT_TYPES: usize = 8;
 pub const FACTORY_SIZE: i8 = 5;
+pub const MAX_BOARD_SIZE: i8 = 100;
 
 pub const MINE_CELLS: [[(Pos, CellKind); 6]; 4] = [
     //   # o
@@ -392,34 +394,55 @@ pub const ADJACENT_COMBINER_CELLS: [[(Pos, Pos); 8]; 4] = [
     ],
 ];
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sim {
-    pub products: [Product; 8],
-    pub buildings: Vec<Building>,
+    pub products: [Product; PRODUCT_TYPES],
+    pub buildings: Buildings,
     pub board: Board,
     pub connections: Vec<Connection>,
 }
 
 impl Sim {
-    pub fn new(
-        products: [Product; 8],
-        buildings: Vec<Building>,
-        board: Board,
-        connections: Vec<Connection>,
-    ) -> Self {
+    pub fn new(products: [Product; PRODUCT_TYPES], board: Board) -> Self {
         Self {
             products,
-            buildings,
+            buildings: Buildings::default(),
             board,
-            connections,
+            connections: Vec::new(),
         }
     }
+}
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Buildings {
+    pub values: Vec<Building>,
+}
+
+impl std::ops::Index<Id> for Buildings {
+    type Output = Building;
+
+    fn index(&self, id: Id) -> &Self::Output {
+        &self.values[id.0 as usize]
+    }
+}
+
+impl std::ops::IndexMut<Id> for Buildings {
+    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
+        &mut self.values[id.0 as usize]
+    }
+}
+
+impl Buildings {
     pub fn next_id(&self) -> Id {
-        Id(self.buildings.len() as u16)
+        Id(self.values.len() as u16)
     }
 
-    pub fn building(&self, id: Id) -> &Building {
-        &self.buildings[id.0 as usize]
+    pub fn push(&mut self, value: Building) {
+        self.values.push(value)
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Building> {
+        self.values.iter_mut()
     }
 }
 
@@ -434,21 +457,32 @@ impl Building {
         Self { pos, kind }
     }
 
-    pub fn take_resources(&mut self) -> Resources {
+    pub fn output_resources(&mut self) -> Resources {
         match &mut self.kind {
             BuildingKind::Deposit(deposit) => {
-                let num = deposit.resources.max(3);
+                let num = deposit.resources.min(3);
                 deposit.resources -= num;
 
                 let mut res = Resources::default();
                 res.values[deposit.resource_type as usize] += num;
                 res
             }
-            BuildingKind::Obstacle(_) => panic!("Obstacles cannot contain resources"),
+            BuildingKind::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
             BuildingKind::Mine(mine) => std::mem::take(&mut mine.resources),
             BuildingKind::Conveyor(conveyor) => std::mem::take(&mut conveyor.resources),
             BuildingKind::Combiner(combiner) => std::mem::take(&mut combiner.resources),
-            BuildingKind::Factory(_) => panic!("Facotories cannot output resources"),
+            BuildingKind::Factory(_) => unreachable!("Facotories cannot output resources"),
+        }
+    }
+
+    pub fn input_resources(&mut self, res: Resources) {
+        match &mut self.kind {
+            BuildingKind::Deposit(_) => unreachable!("Deposits cannot input resources"),
+            BuildingKind::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
+            BuildingKind::Mine(mine) => mine.resources += res,
+            BuildingKind::Conveyor(conveyor) => conveyor.resources += res,
+            BuildingKind::Combiner(combiner) => combiner.resources += res,
+            BuildingKind::Factory(factory) => factory.resources += res,
         }
     }
 }
@@ -472,12 +506,12 @@ pub struct Deposit {
 }
 
 impl Deposit {
-    pub fn new(resource_type: ResourceType, width: u8, height: u8, resources: u16) -> Self {
+    pub fn new(resource_type: ResourceType, width: u8, height: u8) -> Self {
         Self {
             resource_type,
             width,
             height,
-            resources,
+            resources: width as u16 * height as u16 * 5,
         }
     }
 }
@@ -501,10 +535,10 @@ pub struct Mine {
 }
 
 impl Mine {
-    pub fn new(rotation: Rotation, resources: Resources) -> Self {
+    pub fn new(rotation: Rotation) -> Self {
         Self {
             rotation,
-            resources,
+            resources: Resources::default(),
         }
     }
 }
@@ -539,10 +573,10 @@ pub struct Factory {
 }
 
 impl Factory {
-    pub fn new(product_type: ProductType, resources: Resources) -> Self {
+    pub fn new(product_type: ProductType) -> Self {
         Self {
             product_type,
-            resources,
+            resources: Resources::default(),
         }
     }
 }
@@ -588,13 +622,44 @@ pub struct Resources {
     pub values: [u16; RESOURCE_TYPES],
 }
 
+impl std::ops::AddAssign for Resources {
+    fn add_assign(&mut self, rhs: Self) {
+        // TODO: simd
+        for i in 0..RESOURCE_TYPES {
+            self.values[i] += rhs.values[i];
+        }
+    }
+}
+
+impl std::ops::SubAssign for Resources {
+    fn sub_assign(&mut self, rhs: Self) {
+        // TODO: simd
+        for i in 0..RESOURCE_TYPES {
+            self.values[i] -= rhs.values[i];
+        }
+    }
+}
+
 impl Resources {
     pub fn new(values: [u16; RESOURCE_TYPES]) -> Self {
         Self { values }
     }
+
+    pub fn has_at_least(&self, other: &Resources) -> bool {
+        for i in 0..RESOURCE_TYPES {
+            if self.values[i] < other.values[i] {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.iter().all(|r| *r == 0)
+    }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Board {
     width: i8,
     height: i8,
@@ -611,7 +676,7 @@ impl<P: Into<Pos>> std::ops::Index<P> for Board {
             "Board index out of bounds"
         );
 
-        &self.cells[(pos.y * self.width + pos.x) as usize]
+        &self.cells[pos.y as usize * self.width as usize + pos.x as usize]
     }
 }
 
@@ -623,14 +688,14 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
             "Board index out of bounds"
         );
 
-        &mut self.cells[(pos.y * self.width + pos.x) as usize]
+        &mut self.cells[pos.y as usize * self.width as usize + pos.x as usize]
     }
 }
 
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for y in 0..self.width {
-            for x in 0..self.height {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {
                         CellKind::Input => write!(f, "+ ")?,
@@ -651,10 +716,12 @@ impl Board {
     ///Standard Self new method
     ///return empty board of size width x height
     pub fn new(width: i8, height: i8) -> Self {
+        let width = width.clamp(0, MAX_BOARD_SIZE);
+        let height = height.clamp(0, MAX_BOARD_SIZE);
         Board {
             width,
             height,
-            cells: vec![None; (width * height) as usize],
+            cells: vec![None; width as usize * height as usize],
         }
     }
 
@@ -826,11 +893,11 @@ pub const fn pos(x: i8, y: i8) -> Pos {
 }
 
 pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
-    let id = sim.next_id();
+    let id = sim.buildings.next_id();
 
     let res = || -> crate::Result<()> {
         sim.buildings.push(building);
-        let building = sim.building(id);
+        let building = &sim.buildings[id];
         let pos = building.pos;
 
         match &building.kind {
@@ -902,7 +969,7 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             BuildingKind::Factory(_) => {
                 for y in (pos.y)..(pos.y + FACTORY_SIZE) {
                     for x in (pos.x)..(pos.x + FACTORY_SIZE) {
-                        place_cell(sim, (x, y), Cell::output(id))?;
+                        place_cell(sim, (x, y), Cell::input(id))?;
                     }
                 }
                 for x in (pos.x)..(pos.x + FACTORY_SIZE) {
@@ -955,7 +1022,7 @@ fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<(
     }
 
     if let Some(other) = sim.board[pos] {
-        match (&sim.building(other.id).kind, &sim.building(cell.id).kind) {
+        match (&sim.buildings[other.id].kind, &sim.buildings[cell.id].kind) {
             (BuildingKind::Conveyor(_), BuildingKind::Conveyor(_))
                 if cell.kind != CellKind::Inert || other.kind != CellKind::Inert => {}
             _ => return Err(Error::Interseciton(pos)),
@@ -994,8 +1061,8 @@ fn check_connection(
     input_pos: Pos,
     input: Cell,
 ) -> crate::Result<()> {
-    let building_a = sim.building(output.id);
-    let building_b = sim.building(input.id);
+    let building_a = &sim.buildings[output.id];
+    let building_b = &sim.buildings[input.id];
 
     match &building_a.kind {
         BuildingKind::Deposit(_) => match &building_b.kind {
@@ -1051,5 +1118,61 @@ fn check_connection(
             }
         },
         BuildingKind::Factory(_) => unreachable!(),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SimRun {
+    pub rounds: u32,
+    pub points: u32,
+    pub at_turn: u32,
+}
+
+pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
+    let mut points = 0;
+    let mut rounds = 0;
+    let mut at_turn = 0;
+
+    while rounds < max_rounds {
+        let mut unchanged = true;
+
+        // start of the round
+        for con in sim.connections.iter_mut() {
+            let building_b = &mut sim.buildings[con.input];
+            let res = std::mem::take(&mut con.resources);
+            unchanged &= res.is_empty();
+            building_b.input_resources(res);
+        }
+
+        for con in sim.connections.iter_mut() {
+            let building_a = &mut sim.buildings[con.output];
+            con.resources = building_a.output_resources();
+            unchanged &= con.resources.is_empty();
+        }
+
+        for f in sim.buildings.iter_mut().filter_map(|b| {
+            let BuildingKind::Factory(f) = &mut b.kind else { return None; };
+            Some(f)
+        }) {
+            let product = &sim.products[f.product_type as usize];
+            if f.resources.has_at_least(&product.resources) {
+                f.resources -= product.resources.clone();
+                points += product.points;
+                at_turn = rounds + 1;
+                unchanged = false;
+            }
+        }
+
+        if unchanged {
+            break;
+        }
+
+        rounds += 1;
+    }
+
+    SimRun {
+        rounds,
+        points,
+        at_turn,
     }
 }
