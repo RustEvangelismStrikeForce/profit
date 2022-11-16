@@ -866,8 +866,8 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             }
             BuildingKind::Mine(mine) => {
                 let rot = mine.rotation as usize;
-                for (pos, ty) in MINE_CELLS[rot] {
-                    place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                for (p, ty) in MINE_CELLS[rot] {
+                    place_cell(sim, pos + p, Cell::new(ty, id))?;
                 }
                 for (a, b) in ADJACENT_MINE_CELLS[rot] {
                     check_adjacent_cells(sim, pos + a, pos + b)?;
@@ -876,15 +876,15 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             BuildingKind::Conveyor(conveyor) => {
                 let rot = conveyor.rotation as usize;
                 if conveyor.big {
-                    for (pos, ty) in BIG_CONVEYOR_CELLS[rot] {
-                        place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                    for (p, ty) in BIG_CONVEYOR_CELLS[rot] {
+                        place_cell(sim, pos + p, Cell::new(ty, id))?;
                     }
                     for (a, b) in ADJACENT_BIG_CONVEYOR_CELLS[rot] {
                         check_adjacent_cells(sim, pos + a, pos + b)?;
                     }
                 } else {
-                    for (pos, ty) in SMALL_CONVEYOR_CELLS[rot] {
-                        place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                    for (p, ty) in SMALL_CONVEYOR_CELLS[rot] {
+                        place_cell(sim, pos + p, Cell::new(ty, id))?;
                     }
                     for (a, b) in ADJACENT_SMALL_CONVEYOR_CELLS[rot] {
                         check_adjacent_cells(sim, pos + a, pos + b)?;
@@ -893,8 +893,8 @@ pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             }
             BuildingKind::Combiner(combiner) => {
                 let rot = combiner.rotation as usize;
-                for (pos, ty) in COMBINER_CELLS[rot] {
-                    place_cell(sim, pos + pos, Cell::new(ty, id))?;
+                for (p, ty) in COMBINER_CELLS[rot] {
+                    place_cell(sim, pos + p, Cell::new(ty, id))?;
                 }
                 for (a, b) in ADJACENT_COMBINER_CELLS[rot] {
                     check_adjacent_cells(sim, pos + a, pos + b)?;
