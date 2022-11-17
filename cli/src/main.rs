@@ -13,7 +13,7 @@ fn main() {
 
         let mut sim = Sim::new(products, Board::new(20, 10));
 
-        sim::add_building(
+        sim::place_building(
             &mut sim,
             Building::new(
                 pos(0, 0),
@@ -22,13 +22,13 @@ fn main() {
         )
         .unwrap();
 
-        sim::add_building(
+        sim::place_building(
             &mut sim,
             Building::new(pos(5, 1), BuildingKind::Mine(Mine::new(Rotation::Up))),
         )
         .unwrap();
 
-        sim::add_building(
+        sim::place_building(
             &mut sim,
             Building::new(
                 pos(8, 0),

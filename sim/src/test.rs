@@ -13,7 +13,7 @@ fn place_mine_rotated_up() {
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Up)));
 
-    add_building(&mut sim, building).unwrap();
+    place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
     let mut expected = Board::new(10, 10);
@@ -33,7 +33,7 @@ fn place_mine_rotated_right() {
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Right)));
 
-    add_building(&mut sim, building).unwrap();
+    place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
     let mut expected = Board::new(10, 10);
@@ -53,7 +53,7 @@ fn place_mine_rotated_down() {
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Down)));
 
-    add_building(&mut sim, building).unwrap();
+    place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
     let mut expected = Board::new(10, 10);
@@ -73,7 +73,7 @@ fn place_mine_rotated_left() {
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Left)));
 
-    add_building(&mut sim, building).unwrap();
+    place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
     let mut expected = Board::new(10, 10);
@@ -93,7 +93,7 @@ fn deposit_mine_factory() {
 
     let mut sim = Sim::new(products, Board::new(20, 10));
 
-    add_building(
+    place_building(
         &mut sim,
         Building::new(
             pos(0, 0),
@@ -102,13 +102,13 @@ fn deposit_mine_factory() {
     )
     .unwrap();
 
-    add_building(
+    place_building(
         &mut sim,
         Building::new(pos(5, 1), BuildingKind::Mine(Mine::new(Rotation::Up))),
     )
     .unwrap();
 
-    add_building(
+    place_building(
         &mut sim,
         Building::new(
             pos(8, 0),

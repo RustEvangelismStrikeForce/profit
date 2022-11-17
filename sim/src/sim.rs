@@ -444,6 +444,10 @@ impl Buildings {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Building> {
         self.values.iter_mut()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Building> {
+        self.values.iter()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -661,8 +665,8 @@ impl Resources {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Board {
-    width: i8,
-    height: i8,
+    pub width: i8,
+    pub height: i8,
     cells: Vec<Option<Cell>>,
 }
 
@@ -673,7 +677,7 @@ impl<P: Into<Pos>> std::ops::Index<P> for Board {
         let pos = pos.into();
         assert!(
             pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height,
-            "Board index out of bounds"
+            "Board index out of bounds: {pos}"
         );
 
         &self.cells[pos.y as usize * self.width as usize + pos.x as usize]
@@ -685,7 +689,7 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
         let pos = pos.into();
         assert!(
             pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height,
-            "Board index out of bounds"
+            "Board index out of bounds: {pos}"
         );
 
         &mut self.cells[pos.y as usize * self.width as usize + pos.x as usize]
@@ -739,8 +743,8 @@ impl Board {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
-    kind: CellKind,
-    id: Id,
+    pub kind: CellKind,
+    pub id: Id,
 }
 
 impl Cell {
@@ -892,7 +896,7 @@ pub const fn pos(x: i8, y: i8) -> Pos {
     Pos { x, y }
 }
 
-pub fn add_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
+pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
     let id = sim.buildings.next_id();
 
     let res = || -> crate::Result<()> {
