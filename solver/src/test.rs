@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use profit_sim as sim;
 use sim::{pos, Board, Building, BuildingKind, Obstacle, Product, Resources, Sim};
 
-use crate::{find_clusters, Cluster};
+use crate::{find_clusters, Cluster, Network};
 
 #[test]
 fn find_two_clusters() {
@@ -49,4 +49,10 @@ fn find_two_clusters() {
             ]),
         ]
     );
+}
+
+#[test]
+fn network() {
+    let network = Network::<5, 3, 2, 3>::random();
+    let _ = network.calc([3.0, 1.0, 0.0, 0.0, 0.0]);
 }
