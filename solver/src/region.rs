@@ -2,15 +2,64 @@ use profit_sim as sim;
 use sim::{pos, BuildingKind, Id, Pos, Sim, MAX_BOARD_SIZE};
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Cluster {
+pub struct Regions {
     pub buildings: Vec<Id>,
     pub cells: Vec<Pos>,
+    pub indices: Vec<(usize, usize)>,
 }
 
-impl Cluster {
-    pub fn new(buildings: Vec<Id>, cells: Vec<Pos>) -> Self {
-        Self { buildings, cells }
+impl Regions {
+    pub fn new_region(&mut self) {
+        self.indices.push((self.buildings.len(), self.cells.len()));
     }
+
+    pub fn len(&self) -> usize {
+        self.indices.len()
+    }
+
+    pub fn get<'a>(&'a self, idx: usize) -> Region<'a> {
+        let (b, c) = self.indices[idx];
+        match self.indices.get(idx + 1) {
+            Some(&(nb, nc)) => Region {
+                buildings: &self.buildings[b..nb],
+                cells: &self.cells[c..nc],
+            },
+            None => Region {
+                buildings: &self.buildings[b..],
+                cells: &self.cells[c..],
+            },
+        }
+    }
+
+    pub fn get_mut<'a>(&'a mut self, idx: usize) -> RegionMut<'a> {
+        let (b, c) = self.indices[idx];
+        match self.indices.get(idx + 1) {
+            Some(&(nb, nc)) => RegionMut {
+                buildings: &mut self.buildings[b..nb],
+                cells: &mut self.cells[c..nc],
+            },
+            None => RegionMut {
+                buildings: &mut self.buildings[b..],
+                cells: &mut self.cells[c..],
+            },
+        }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = Region<'a>> {
+        (0..self.len()).map(|i| self.get(i))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Region<'a> {
+    pub buildings: &'a [Id],
+    pub cells: &'a [Pos],
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct RegionMut<'a> {
+    pub buildings: &'a mut [Id],
+    pub cells: &'a mut [Pos],
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -58,15 +107,14 @@ impl Visited {
     }
 }
 
-pub fn find_clusters(sim: &Sim) -> Vec<Cluster> {
+pub fn find_regions(sim: &Sim) -> Regions {
     let mut visited = Visited::new(sim.board.width, sim.board.height);
-    let mut clusters = Vec::new();
+    let mut regions = Regions::default();
     let mut position = pos(0, 0);
 
     loop {
-        let mut current_cluster = Cluster::default();
-        find_cluster(sim, &mut visited, &mut current_cluster, position);
-        clusters.push(current_cluster);
+        regions.new_region();
+        find_region(sim, &mut visited, &mut regions, position);
 
         let mut all_visited = true;
         'outer: for y in 0..visited.height {
@@ -84,10 +132,10 @@ pub fn find_clusters(sim: &Sim) -> Vec<Cluster> {
         }
     }
 
-    clusters
+    regions
 }
 
-fn find_cluster(sim: &Sim, visited: &mut Visited, cluster: &mut Cluster, pos: Pos) {
+fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos) {
     if pos.x < 0 || pos.x >= visited.width || pos.y < 0 || pos.y >= visited.height {
         return;
     }
@@ -96,8 +144,8 @@ fn find_cluster(sim: &Sim, visited: &mut Visited, cluster: &mut Cluster, pos: Po
         let building = &sim.buildings[c.id];
         match &building.kind {
             BuildingKind::Deposit(deposit) => {
-                if !cluster.buildings.contains(&c.id) {
-                    cluster.buildings.push(c.id);
+                if !regions.buildings.contains(&c.id) {
+                    regions.buildings.push(c.id);
                 }
 
                 for y in 0..deposit.height as i8 {
@@ -123,8 +171,8 @@ fn find_cluster(sim: &Sim, visited: &mut Visited, cluster: &mut Cluster, pos: Po
             | BuildingKind::Factory(_) => todo!(),
         }
     } else {
-        if !cluster.cells.contains(&pos) {
-            cluster.cells.push(pos);
+        if !regions.cells.contains(&pos) {
+            regions.cells.push(pos);
         }
     }
 
@@ -133,8 +181,8 @@ fn find_cluster(sim: &Sim, visited: &mut Visited, cluster: &mut Cluster, pos: Po
     }
     visited[pos] = true;
 
-    find_cluster(sim, visited, cluster, pos + (0, -1));
-    find_cluster(sim, visited, cluster, pos + (-1, 0));
-    find_cluster(sim, visited, cluster, pos + (0, 1));
-    find_cluster(sim, visited, cluster, pos + (1, 0));
+    find_region(sim, visited, regions, pos + (0, -1));
+    find_region(sim, visited, regions, pos + (-1, 0));
+    find_region(sim, visited, regions, pos + (0, 1));
+    find_region(sim, visited, regions, pos + (1, 0));
 }
