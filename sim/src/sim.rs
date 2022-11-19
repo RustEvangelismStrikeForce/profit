@@ -933,6 +933,14 @@ pub const fn pos(x: i8, y: i8) -> Pos {
     Pos { x, y }
 }
 
+pub fn place_building_at(
+    sim: &mut Sim,
+    pos: impl Into<Pos>,
+    kind: BuildingKind,
+) -> crate::Result<()> {
+    place_building(sim, Building::new(pos.into(), kind))
+}
+
 pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
     let id = sim.buildings.next_id();
 

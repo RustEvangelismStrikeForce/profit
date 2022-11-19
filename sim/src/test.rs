@@ -186,6 +186,58 @@ fn deserialize_task_001() {
 }
 
 #[test]
+fn convert_task_001_to_sim() {
+    let file = File::open("../examples/001.task.json").unwrap();
+    let task: dto::Task = serde_json::from_reader(file).unwrap();
+    let sim = Sim::try_from(&task).unwrap();
+
+    let expected = {
+        let mut products = Products::default();
+        products[0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
+        let mut sim = Sim::new(products, Board::new(30, 20));
+
+        place_building_at(
+            &mut sim,
+            pos(1, 1),
+            BuildingKind::Deposit(Deposit::new(ResourceType::Type0, 5, 5)),
+        )
+        .unwrap();
+
+        place_building_at(
+            &mut sim,
+            pos(1, 14),
+            BuildingKind::Deposit(Deposit::new(ResourceType::Type1, 5, 5)),
+        )
+        .unwrap();
+
+        place_building_at(
+            &mut sim,
+            pos(22, 1),
+            BuildingKind::Deposit(Deposit::new(ResourceType::Type2, 7, 7)),
+        )
+        .unwrap();
+
+        place_building_at(
+            &mut sim,
+            pos(11, 9),
+            BuildingKind::Obstacle(Obstacle::new(19, 2)),
+        )
+        .unwrap();
+
+        place_building_at(
+            &mut sim,
+            pos(11, 1),
+            BuildingKind::Obstacle(Obstacle::new(2, 8)),
+        )
+        .unwrap();
+
+        sim
+    };
+
+    assert_eq!(sim, expected);
+}
+
+#[test]
 fn deserialize_solution_001() {
     let file = File::open("../examples/001.solution.json").unwrap();
     let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
