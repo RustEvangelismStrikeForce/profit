@@ -1,15 +1,13 @@
-use std::array;
 use std::cmp::Ordering;
 
 use profit_sim as sim;
-use sim::{pos, Board, Building, BuildingKind, Obstacle, Product, Resources, Sim};
+use sim::{pos, Board, Building, BuildingKind, Obstacle, Products, Sim};
 
 use crate::{find_regions, Network, Regions};
 
 #[test]
 fn find_two_clusters() {
-    let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, Board::new(6, 6));
+    let mut sim = Sim::new(Products::default(), Board::new(6, 6));
 
     sim::place_building(
         &mut sim,

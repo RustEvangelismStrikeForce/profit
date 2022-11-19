@@ -1,4 +1,3 @@
-use std::array;
 use std::fs::File;
 
 use crate::{
@@ -8,8 +7,7 @@ use crate::{
 
 #[test]
 fn place_mine_rotated_up() {
-    let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Up)));
 
@@ -28,8 +26,7 @@ fn place_mine_rotated_up() {
 
 #[test]
 fn place_mine_rotated_right() {
-    let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Right)));
 
@@ -48,8 +45,7 @@ fn place_mine_rotated_right() {
 
 #[test]
 fn place_mine_rotated_down() {
-    let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Down)));
 
@@ -68,8 +64,7 @@ fn place_mine_rotated_down() {
 
 #[test]
 fn place_mine_rotated_left() {
-    let products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
-    let mut sim = Sim::new(products, Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
     let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Left)));
 
@@ -88,7 +83,7 @@ fn place_mine_rotated_left() {
 
 #[test]
 fn deposit_mine_factory() {
-    let mut products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
+    let mut products = Products::default();
     products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
 
     let mut sim = Sim::new(products, Board::new(20, 10));
@@ -143,40 +138,40 @@ fn deserialize_task_001() {
                     subtype: 0,
                     x: 1,
                     y: 1,
-                    width: Some(5),
-                    height: Some(5),
+                    width: 5,
+                    height: 5,
                 },
                 dto::Object {
                     kind: dto::ObjectKind::Deposit,
                     subtype: 1,
                     x: 1,
                     y: 14,
-                    width: Some(5),
-                    height: Some(5),
+                    width: 5,
+                    height: 5,
                 },
                 dto::Object {
                     kind: dto::ObjectKind::Deposit,
                     subtype: 2,
                     x: 22,
                     y: 1,
-                    width: Some(7),
-                    height: Some(7),
+                    width: 7,
+                    height: 7,
                 },
                 dto::Object {
                     kind: dto::ObjectKind::Obstacle,
                     subtype: 0,
                     x: 11,
                     y: 9,
-                    width: Some(19),
-                    height: Some(2),
+                    width: 19,
+                    height: 2,
                 },
                 dto::Object {
                     kind: dto::ObjectKind::Obstacle,
                     subtype: 0,
                     x: 11,
                     y: 1,
-                    width: Some(2),
-                    height: Some(8),
+                    width: 2,
+                    height: 8,
                 },
             ],
             products: vec![dto::Product {
@@ -200,88 +195,88 @@ fn deserialize_solution_001() {
             subtype: 3,
             x: 9,
             y: 1,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 11,
             y: 0,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 2,
             x: 19,
             y: 3,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Factory,
             subtype: 0,
             x: 13,
             y: 3,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 1,
             x: 14,
             y: 1,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 3,
             x: 5,
             y: 12,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 0,
             x: 6,
             y: 5,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 9,
             y: 4,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 7,
             y: 10,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
             y: 8,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
             y: 4,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
     ];
     assert_eq!(serialized, objects)
@@ -295,88 +290,88 @@ fn serialize_solution() {
             subtype: 3,
             x: 9,
             y: 1,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 11,
             y: 0,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 2,
             x: 19,
             y: 3,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Factory,
             subtype: 0,
             x: 13,
             y: 3,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 1,
             x: 14,
             y: 1,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 3,
             x: 5,
             y: 12,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Mine,
             subtype: 0,
             x: 6,
             y: 5,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 9,
             y: 4,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 7,
             y: 10,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
             y: 8,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
         Object {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
             y: 4,
-            width: None,
-            height: None,
+            width: 0,
+            height: 0,
         },
     ];
 

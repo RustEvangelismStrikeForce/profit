@@ -4,6 +4,7 @@
 //! output: -
 
 use core::fmt;
+use std::array;
 use std::fmt::Write;
 
 use crate::Error;
@@ -396,14 +397,14 @@ pub const ADJACENT_COMBINER_CELLS: [[(Pos, Pos); 8]; 4] = [
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sim {
-    pub products: [Product; PRODUCT_TYPES],
+    pub products: Products,
     pub buildings: Buildings,
     pub board: Board,
     pub connections: Vec<Connection>,
 }
 
 impl Sim {
-    pub fn new(products: [Product; PRODUCT_TYPES], board: Board) -> Self {
+    pub fn new(products: Products, board: Board) -> Self {
         Self {
             products,
             buildings: Buildings::default(),
@@ -555,11 +556,11 @@ pub struct Conveyor {
 }
 
 impl Conveyor {
-    pub fn new(rotation: Rotation, big: bool, resources: Resources) -> Self {
+    pub fn new(rotation: Rotation, big: bool) -> Self {
         Self {
             rotation,
             big,
-            resources,
+            resources: Resources::default(),
         }
     }
 }
@@ -568,6 +569,15 @@ impl Conveyor {
 pub struct Combiner {
     pub rotation: Rotation,
     pub resources: Resources,
+}
+
+impl Combiner {
+    pub fn new(rotation: Rotation) -> Self {
+        Self {
+            rotation,
+            resources: Resources::default(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -586,6 +596,33 @@ impl Factory {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Products {
+    values: [Product; 8],
+}
+
+impl std::ops::Deref for Products {
+    type Target = [Product; 8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+
+impl std::ops::DerefMut for Products {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.values
+    }
+}
+
+impl Default for Products {
+    fn default() -> Self {
+        Self {
+            values: array::from_fn(|_| Product::default()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Product {
     pub resources: Resources,
     pub points: u32,
@@ -1158,7 +1195,7 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             let BuildingKind::Factory(f) = &mut b.kind else { return None; };
             Some(f)
         }) {
-            let product = &sim.products[f.product_type as usize];
+            let product = &sim.products.values[f.product_type as usize];
             if f.resources.has_at_least(&product.resources) {
                 f.resources -= product.resources.clone();
                 points += product.points;

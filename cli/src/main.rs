@@ -1,14 +1,12 @@
-use std::array;
-
 use profit_sim as sim;
 use sim::{
-    pos, Board, Building, BuildingKind, Deposit, Factory, Mine, Product, ProductType, ResourceType,
-    Resources, Rotation, Sim, SimRun,
+    pos, Board, Building, BuildingKind, Deposit, Factory, Mine, Product, ProductType, Products,
+    ResourceType, Resources, Rotation, Sim, SimRun,
 };
 
 fn main() {
     for _ in 0..1000000 {
-        let mut products = array::from_fn(|i| Product::new(Resources::default(), i as u32));
+        let mut products = Products::default();
         products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
 
         let mut sim = Sim::new(products, Board::new(20, 10));
