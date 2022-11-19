@@ -924,17 +924,21 @@ pub enum CellKind {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Connection {
     /// Output cell - input of the connection
-    pub output: Id,
+    pub output_id: Id,
+    pub output_pos: Pos,
     /// Input cell - output of the connection
-    pub input: Id,
+    pub input_id: Id,
+    pub input_pos: Pos,
     pub resources: Resources,
 }
 
 impl Connection {
-    pub fn new(output: Id, input: Id) -> Self {
+    pub fn new(output_id: Id, output_pos: Pos, input_id: Id, input_pos: Pos) -> Self {
         Self {
-            output,
-            input,
+            output_id,
+            output_pos,
+            input_id,
+            input_pos,
             resources: Resources::default(),
         }
     }
@@ -1124,7 +1128,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             }
         }
 
-        sim.connections.retain(|c| c.input != id && c.output != id);
+        sim.connections
+            .retain(|c| c.input_id != id && c.output_id != id);
     }
 
     res
@@ -1188,7 +1193,15 @@ fn check_connection(
             BuildingKind::Deposit(_) => unreachable!(),
             BuildingKind::Obstacle(_) => unreachable!(),
             BuildingKind::Mine(_) => {
-                sim.connections.push(Connection::new(output.id, input.id));
+                let con = Connection::new(output.id, output_pos, input.id, input_pos);
+
+                for c in sim.connections.iter() {
+                    if c.output_pos == output_pos {
+                        return Err(Error::MultipleIngresses(output_pos));
+                    }
+                }
+
+                sim.connections.push(con);
                 Ok(())
             }
             BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
@@ -1201,17 +1214,15 @@ fn check_connection(
             BuildingKind::Obstacle(_) => unreachable!(),
             BuildingKind::Mine(_) => Err(Error::MineEgress(output_pos)),
             BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
+                let con = Connection::new(output.id, output_pos, input.id, input_pos);
+
                 for c in sim.connections.iter() {
-                    if c.output == output.id {
-                        if c.input == input.id {
-                            return Ok(());
-                        } else {
-                            return Err(Error::MultipleIngresses(output_pos));
-                        }
+                    if c.output_pos == output_pos {
+                        return Err(Error::MultipleIngresses(output_pos));
                     }
                 }
 
-                sim.connections.push(Connection::new(output.id, input.id));
+                sim.connections.push(con);
                 Ok(())
             }
         },
@@ -1222,17 +1233,15 @@ fn check_connection(
             | BuildingKind::Conveyor(_)
             | BuildingKind::Combiner(_)
             | BuildingKind::Factory(_) => {
+                let con = Connection::new(output.id, output_pos, input.id, input_pos);
+
                 for c in sim.connections.iter() {
-                    if c.output == output.id {
-                        if c.input == input.id {
-                            return Ok(());
-                        } else {
-                            return Err(Error::MultipleIngresses(output_pos));
-                        }
+                    if c.output_pos == output_pos {
+                        return Err(Error::MultipleIngresses(output_pos));
                     }
                 }
 
-                sim.connections.push(Connection::new(output.id, input.id));
+                sim.connections.push(con);
                 Ok(())
             }
         },
@@ -1257,14 +1266,14 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
 
         // start of the round
         for con in sim.connections.iter_mut() {
-            let building_b = &mut sim.buildings[con.input];
+            let building_b = &mut sim.buildings[con.input_id];
             let res = std::mem::take(&mut con.resources);
             unchanged &= res.is_empty();
             building_b.input_resources(res);
         }
 
         for con in sim.connections.iter_mut() {
-            let building_a = &mut sim.buildings[con.output];
+            let building_a = &mut sim.buildings[con.output_id];
             con.resources = building_a.output_resources();
             unchanged &= con.resources.is_empty();
         }

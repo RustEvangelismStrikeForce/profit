@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use crate::Error;
 use crate::{
     dto::{self, Object},
     sim::*,
@@ -102,6 +103,24 @@ fn deposit_mine_factory() {
             at_turn: 28
         }
     );
+}
+
+#[test]
+fn two_ingresses_at_one_egress() {
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+
+    let building = Building::deposit((0, 0), ResourceType::Type0, 2, 2);
+    place_building(&mut sim, building).unwrap();
+
+    let building = Building::mine((3, 0), Rotation::Up);
+    place_building(&mut sim, building).unwrap();
+
+    let building = Building::mine((1, 3), Rotation::Right);
+    let res = place_building(&mut sim, building);
+
+    println!("{:?}", sim.board);
+
+    assert_eq!(res, Err(Error::MultipleIngresses(pos(1, 1))));
 }
 
 #[test]
