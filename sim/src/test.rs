@@ -395,3 +395,35 @@ fn serialize_solution() {
     let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
     assert_eq!(serialized, objects)
 }
+
+#[test]
+fn run_002_solution_001() {
+    let input = std::fs::read_to_string("../examples/002.solution.001.json").unwrap();
+    let task: dto::Task = serde_json::from_str(&input).unwrap();
+    let mut sim = Sim::try_from(&task).unwrap();
+    let run = run(&mut sim, task.turns);
+    assert_eq!(
+        run,
+        SimRun {
+            rounds: 14,
+            points: 20,
+            at_turn: 14,
+        }
+    );
+}
+
+#[test]
+fn run_002_solution_002() {
+    let input = std::fs::read_to_string("../examples/002.solution.002.json").unwrap();
+    let task: dto::Task = serde_json::from_str(&input).unwrap();
+    let mut sim = Sim::try_from(&task).unwrap();
+    let run = run(&mut sim, task.turns);
+    assert_eq!(
+        run,
+        SimRun {
+            rounds: 14,
+            points: 60,
+            at_turn: 14,
+        }
+    );
+}

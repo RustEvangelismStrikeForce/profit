@@ -1,8 +1,8 @@
 pub use error::*;
 pub use sim::*;
 
-mod dto;
+pub mod dto;
 mod error;
-pub mod sim;
+mod sim;
 #[cfg(test)]
 mod test;

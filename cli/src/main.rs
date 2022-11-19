@@ -1,32 +1,19 @@
+use std::io::stdin;
+
 use profit_sim as sim;
-use sim::{
-    Board, Building, Product, ProductType, Products, ResourceType, Resources, Rotation, Sim, SimRun,
-};
+use profit_solver as solver;
+use sim::{dto, Sim};
 
 fn main() {
-    for _ in 0..1000000 {
-        let mut products = Products::default();
-        products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
+    let stdin = stdin();
+    let mut input = String::new();
+    stdin.read_line(&mut input).unwrap();
 
-        let mut sim = Sim::new(products, Board::new(20, 10));
+    let task: dto::Task = serde_json::from_str(&input).unwrap();
+    let sim = Sim::try_from(&task).unwrap();
 
-        let building = Building::deposit((0, 0), ResourceType::Type0, 4, 4);
-        sim::place_building(&mut sim, building).unwrap();
+    solver::solve(&sim);
 
-        let building = Building::mine((5, 1), Rotation::Up);
-        sim::place_building(&mut sim, building).unwrap();
-
-        let building = Building::factory((8, 0), ProductType::Type0);
-        sim::place_building(&mut sim, building).unwrap();
-
-        let run = sim::run(&mut sim, 100);
-        assert_eq!(
-            run,
-            SimRun {
-                rounds: 29,
-                points: 99,
-                at_turn: 28
-            }
-        );
-    }
+    // let run = sim::run(&mut sim, task.turns);
+    // dbg!(run);
 }

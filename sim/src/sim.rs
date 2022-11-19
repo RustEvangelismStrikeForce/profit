@@ -708,7 +708,7 @@ pub enum ResourceType {
     Type7 = 7,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Resources {
     pub values: [u16; RESOURCE_TYPES],
 }
@@ -728,6 +728,34 @@ impl std::ops::SubAssign for Resources {
         for i in 0..RESOURCE_TYPES {
             self.values[i] -= rhs.values[i];
         }
+    }
+}
+
+impl std::ops::Div for Resources {
+    type Output = Resources;
+
+    fn div(self, rhs: Self) -> Resources {
+        // TODO: simd
+        let mut res = Resources::default();
+        for i in 0..RESOURCE_TYPES {
+            res.values[i] = self.values[i]
+                .checked_div(rhs.values[i])
+                .unwrap_or(u16::MAX);
+        }
+        res
+    }
+}
+
+impl std::ops::Mul for Resources {
+    type Output = Resources;
+
+    fn mul(self, rhs: Self) -> Resources {
+        // TODO: simd
+        let mut res = Resources::default();
+        for i in 0..RESOURCE_TYPES {
+            res.values[i] = self.values[i] * rhs.values[i];
+        }
+        res
     }
 }
 
@@ -1246,9 +1274,15 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             Some(f)
         }) {
             let product = &sim.products.values[f.product_type as usize];
-            if f.resources.has_at_least(&product.resources) {
-                f.resources -= product.resources.clone();
-                points += product.points;
+            let times = (f.resources / product.resources)
+                .values
+                .iter()
+                .min()
+                .map_or(0, |t| *t);
+
+            if times > 0 {
+                f.resources -= product.resources * Resources::new([times; 8]);
+                points += product.points * times as u32;
                 at_turn = rounds + 1;
                 unchanged = false;
             }

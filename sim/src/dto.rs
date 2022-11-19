@@ -12,8 +12,8 @@ pub struct Task {
     pub height: i8,
     pub objects: Vec<Object>,
     pub products: Vec<Product>,
-    pub turns: usize,
-    pub time: usize,
+    pub turns: u32,
+    pub time: u32,
 }
 
 impl TryFrom<&Task> for Sim {

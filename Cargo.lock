@@ -51,6 +51,9 @@ name = "profit_cli"
 version = "0.1.0"
 dependencies = [
  "profit_sim",
+ "profit_solver",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

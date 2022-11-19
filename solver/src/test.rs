@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use profit_sim as sim;
 use sim::{pos, Board, Building, Products, Sim};
 
-use crate::{find_regions, Network, Regions};
+use crate::{find_regions, Regions};
 
 #[test]
 fn find_two_clusters() {
@@ -45,10 +45,4 @@ fn find_two_clusters() {
     };
 
     assert_eq!(regions, expected,);
-}
-
-#[test]
-fn network() {
-    let network = Network::<5, 3, 2, 3>::random();
-    let _ = network.calc([3.0, 1.0, 0.0, 0.0, 0.0]);
 }
