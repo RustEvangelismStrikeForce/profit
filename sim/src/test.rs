@@ -9,8 +9,7 @@ use crate::{
 fn place_mine_rotated_up() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
-    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Up)));
-
+    let building = Building::mine((3, 3), Rotation::Up);
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -28,8 +27,7 @@ fn place_mine_rotated_up() {
 fn place_mine_rotated_right() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
-    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Right)));
-
+    let building = Building::mine((3, 3), Rotation::Right);
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -47,8 +45,7 @@ fn place_mine_rotated_right() {
 fn place_mine_rotated_down() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
-    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Down)));
-
+    let building = Building::mine((3, 3), Rotation::Down);
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -66,8 +63,7 @@ fn place_mine_rotated_down() {
 fn place_mine_rotated_left() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10));
 
-    let building = Building::new(pos(3, 3), BuildingKind::Mine(Mine::new(Rotation::Left)));
-
+    let building = Building::mine((3, 3), Rotation::Left);
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -88,29 +84,14 @@ fn deposit_mine_factory() {
 
     let mut sim = Sim::new(products, Board::new(20, 10));
 
-    place_building(
-        &mut sim,
-        Building::new(
-            pos(0, 0),
-            BuildingKind::Deposit(Deposit::new(ResourceType::Type0, 4, 4)),
-        ),
-    )
-    .unwrap();
+    let building = Building::deposit((0, 0), ResourceType::Type0, 4, 4);
+    place_building(&mut sim, building).unwrap();
 
-    place_building(
-        &mut sim,
-        Building::new(pos(5, 1), BuildingKind::Mine(Mine::new(Rotation::Up))),
-    )
-    .unwrap();
+    let building = Building::mine((5, 1), Rotation::Up);
+    place_building(&mut sim, building).unwrap();
 
-    place_building(
-        &mut sim,
-        Building::new(
-            pos(8, 0),
-            BuildingKind::Factory(Factory::new(ProductType::Type0)),
-        ),
-    )
-    .unwrap();
+    let building = Building::factory((8, 0), ProductType::Type0);
+    place_building(&mut sim, building).unwrap();
 
     let run = run(&mut sim, 100);
     assert_eq!(
@@ -196,40 +177,20 @@ fn convert_task_001_to_sim() {
         products[0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
         let mut sim = Sim::new(products, Board::new(30, 20));
 
-        place_building_at(
-            &mut sim,
-            pos(1, 1),
-            BuildingKind::Deposit(Deposit::new(ResourceType::Type0, 5, 5)),
-        )
-        .unwrap();
+        let building = Building::deposit((1, 1), ResourceType::Type0, 5, 5);
+        place_building(&mut sim, building).unwrap();
 
-        place_building_at(
-            &mut sim,
-            pos(1, 14),
-            BuildingKind::Deposit(Deposit::new(ResourceType::Type1, 5, 5)),
-        )
-        .unwrap();
+        let building = Building::deposit((1, 14), ResourceType::Type1, 5, 5);
+        place_building(&mut sim, building).unwrap();
 
-        place_building_at(
-            &mut sim,
-            pos(22, 1),
-            BuildingKind::Deposit(Deposit::new(ResourceType::Type2, 7, 7)),
-        )
-        .unwrap();
+        let building = Building::deposit((22, 1), ResourceType::Type2, 7, 7);
+        place_building(&mut sim, building).unwrap();
 
-        place_building_at(
-            &mut sim,
-            pos(11, 9),
-            BuildingKind::Obstacle(Obstacle::new(19, 2)),
-        )
-        .unwrap();
+        let building = Building::obstacle((11, 9), 19, 2);
+        place_building(&mut sim, building).unwrap();
 
-        place_building_at(
-            &mut sim,
-            pos(11, 1),
-            BuildingKind::Obstacle(Obstacle::new(2, 8)),
-        )
-        .unwrap();
+        let building = Building::obstacle((11, 1), 2, 8);
+        place_building(&mut sim, building).unwrap();
 
         sim
     };

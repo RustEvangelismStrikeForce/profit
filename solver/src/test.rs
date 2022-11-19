@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use profit_sim as sim;
-use sim::{pos, Board, Building, BuildingKind, Obstacle, Products, Sim};
+use sim::{pos, Board, Building, Products, Sim};
 
 use crate::{find_regions, Network, Regions};
 
@@ -9,11 +9,7 @@ use crate::{find_regions, Network, Regions};
 fn find_two_clusters() {
     let mut sim = Sim::new(Products::default(), Board::new(6, 6));
 
-    sim::place_building(
-        &mut sim,
-        Building::new(pos(3, 0), BuildingKind::Obstacle(Obstacle::new(1, 6))),
-    )
-    .unwrap();
+    sim::place_building(&mut sim, Building::obstacle(pos(3, 0), 1, 6)).unwrap();
 
     let mut regions = find_regions(&sim);
 

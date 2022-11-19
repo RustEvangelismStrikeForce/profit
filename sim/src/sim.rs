@@ -458,8 +458,58 @@ pub struct Building {
 }
 
 impl Building {
-    pub fn new(pos: Pos, kind: BuildingKind) -> Self {
-        Self { pos, kind }
+    pub fn new(pos: impl Into<Pos>, kind: BuildingKind) -> Self {
+        Self {
+            pos: pos.into(),
+            kind,
+        }
+    }
+
+    pub fn deposit(
+        pos: impl Into<Pos>,
+        resource_type: ResourceType,
+        width: u8,
+        height: u8,
+    ) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Deposit(Deposit::new(resource_type, width, height)),
+        }
+    }
+
+    pub fn obstacle(pos: impl Into<Pos>, width: u8, height: u8) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Obstacle(Obstacle::new(width, height)),
+        }
+    }
+
+    pub fn mine(pos: impl Into<Pos>, rotation: Rotation) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Mine(Mine::new(rotation)),
+        }
+    }
+
+    pub fn conveyor(pos: impl Into<Pos>, rotation: Rotation, big: bool) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Conveyor(Conveyor::new(rotation, big)),
+        }
+    }
+
+    pub fn combiner(pos: impl Into<Pos>, rotation: Rotation) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Combiner(Combiner::new(rotation)),
+        }
+    }
+
+    pub fn factory(pos: impl Into<Pos>, product_type: ProductType) -> Self {
+        Self {
+            pos: pos.into(),
+            kind: BuildingKind::Factory(Factory::new(product_type)),
+        }
     }
 
     pub fn output_resources(&mut self) -> Resources {
@@ -931,14 +981,6 @@ impl<P: Into<Pos>> std::ops::SubAssign<P> for Pos {
 #[inline(always)]
 pub const fn pos(x: i8, y: i8) -> Pos {
     Pos { x, y }
-}
-
-pub fn place_building_at(
-    sim: &mut Sim,
-    pos: impl Into<Pos>,
-    kind: BuildingKind,
-) -> crate::Result<()> {
-    place_building(sim, Building::new(pos.into(), kind))
 }
 
 pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
