@@ -1274,17 +1274,19 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             Some(f)
         }) {
             let product = &sim.products.values[f.product_type as usize];
-            let times = (f.resources / product.resources)
-                .values
-                .iter()
-                .min()
-                .map_or(0, |t| *t);
+            if f.resources.has_at_least(&product.resources) {
+                let times = (f.resources / product.resources)
+                    .values
+                    .iter()
+                    .min()
+                    .map_or(0, |t| *t);
 
-            if times > 0 {
-                f.resources -= product.resources * Resources::new([times; 8]);
-                points += product.points * times as u32;
-                at_turn = rounds + 1;
-                unchanged = false;
+                if times > 0 {
+                    f.resources -= product.resources * Resources::new([times; 8]);
+                    points += product.points * times as u32;
+                    at_turn = rounds + 1;
+                    unchanged = false;
+                }
             }
         }
 
