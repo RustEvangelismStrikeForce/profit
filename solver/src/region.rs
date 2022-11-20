@@ -1,7 +1,7 @@
 use profit_sim as sim;
 use sim::{pos, BuildingKind, Id, Pos, Sim, MAX_BOARD_SIZE};
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Regions {
     pub buildings: Vec<Id>,
     pub cells: Vec<Pos>,
@@ -17,7 +17,7 @@ impl Regions {
         self.indices.len()
     }
 
-    pub fn get<'a>(&'a self, idx: usize) -> Region<'a> {
+    pub fn get(&self, idx: usize) -> Region<'_> {
         let (b, c) = self.indices[idx];
         match self.indices.get(idx + 1) {
             Some(&(nb, nc)) => Region {
@@ -31,7 +31,7 @@ impl Regions {
         }
     }
 
-    pub fn get_mut<'a>(&'a mut self, idx: usize) -> RegionMut<'a> {
+    pub fn get_mut(&mut self, idx: usize) -> RegionMut<'_> {
         let (b, c) = self.indices[idx];
         match self.indices.get(idx + 1) {
             Some(&(nb, nc)) => RegionMut {
@@ -45,18 +45,18 @@ impl Regions {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = Region<'a>> {
+    pub fn iter(&self) -> impl Iterator<Item = Region<'_>> {
         (0..self.len()).map(|i| self.get(i))
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Region<'a> {
     pub buildings: &'a [Id],
     pub cells: &'a [Pos],
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct RegionMut<'a> {
     pub buildings: &'a mut [Id],
     pub cells: &'a mut [Pos],
@@ -170,10 +170,8 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
             | BuildingKind::Combiner(_)
             | BuildingKind::Factory(_) => todo!(),
         }
-    } else {
-        if !regions.cells.contains(&pos) {
-            regions.cells.push(pos);
-        }
+    } else if !regions.cells.contains(&pos) {
+        regions.cells.push(pos);
     }
 
     if visited[pos] {
