@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
 
 use profit_sim as sim;
-use sim::{place_building, pos, Board, Building, Product, Products, ResourceType, Resources, Sim};
+use sim::{
+    place_building, pos, Board, Building, Product, Products, ResourceType, Resources, Sim,
+    PRODUCT_TYPES,
+};
 
 use crate::{find_regions, possible_products_per_region, Regions};
 
@@ -24,7 +27,7 @@ fn find_two_clusters() {
 
     #[rustfmt::skip]
     let expected = Regions {
-        buildings: vec![],
+        deposits: vec![],
         cells: vec![
             // first
             pos(0, 0), pos(1, 0), pos(2, 0),
@@ -62,5 +65,11 @@ fn one_possible_product() {
     let regions = find_regions(&sim);
 
     let possible_products = possible_products_per_region(&sim, &regions);
-    assert_eq!(possible_products, [0x00, 0b0000_0001]);
+    assert_eq!(
+        possible_products,
+        [
+            [false; PRODUCT_TYPES],
+            [true, false, false, false, false, false, false, false]
+        ]
+    );
 }

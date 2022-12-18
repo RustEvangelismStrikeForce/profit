@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    place_building, pos, Board, Building, BuildingKind, Combiner, Conveyor, Deposit, Error,
-    Factory, IoError, Mine, Obstacle, ProductType, Products, ResourceType, Resources, Rotation,
-    Sim,
+    place_building, pos, Board, Building, Combiner, Conveyor, Deposit, Error, Factory, IoError,
+    Mine, Obstacle, ProductType, Products, ResourceType, Resources, Rotation, Sim,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,55 +63,64 @@ impl TryFrom<&Object> for Building {
     type Error = IoError;
 
     fn try_from(o: &Object) -> Result<Self, IoError> {
-        Ok(Building {
-            pos: pos(o.x, o.y),
-            kind: match o.kind {
-                ObjectKind::Deposit => BuildingKind::Deposit(Deposit::new(
-                    match o.subtype {
-                        0 => ResourceType::Type0,
-                        1 => ResourceType::Type1,
-                        2 => ResourceType::Type2,
-                        3 => ResourceType::Type3,
-                        4 => ResourceType::Type4,
-                        5 => ResourceType::Type5,
-                        6 => ResourceType::Type6,
-                        7 => ResourceType::Type7,
-                        t => return Err(IoError::UnknownDepositSubtype(t)),
-                    },
-                    o.width,
-                    o.height,
-                )),
-                ObjectKind::Obstacle => BuildingKind::Obstacle(Obstacle::new(o.width, o.height)),
-                ObjectKind::Mine => BuildingKind::Mine(Mine::new(match o.subtype {
+        let pos = pos(o.x, o.y);
+        Ok(match o.kind {
+            ObjectKind::Deposit => Building::Deposit(Deposit::new(
+                pos,
+                o.width,
+                o.height,
+                match o.subtype {
+                    0 => ResourceType::Type0,
+                    1 => ResourceType::Type1,
+                    2 => ResourceType::Type2,
+                    3 => ResourceType::Type3,
+                    4 => ResourceType::Type4,
+                    5 => ResourceType::Type5,
+                    6 => ResourceType::Type6,
+                    7 => ResourceType::Type7,
+                    t => return Err(IoError::UnknownDepositSubtype(t)),
+                },
+            )),
+            ObjectKind::Obstacle => Building::Obstacle(Obstacle::new(pos, o.width, o.height)),
+            ObjectKind::Mine => Building::Mine(Mine::new(
+                pos,
+                match o.subtype {
                     0 => Rotation::Up,
                     1 => Rotation::Right,
                     2 => Rotation::Down,
                     3 => Rotation::Left,
                     t => return Err(IoError::UnknownMineSubtype(t)),
-                })),
-                ObjectKind::Conveyor => {
-                    if o.subtype >= 8 {
-                        return Err(IoError::UnknownMineSubtype(o.subtype));
-                    }
-                    BuildingKind::Conveyor(Conveyor::new(
-                        match o.subtype % 4 {
-                            0 => Rotation::Up,
-                            1 => Rotation::Right,
-                            2 => Rotation::Down,
-                            3 => Rotation::Left,
-                            _ => unreachable!(),
-                        },
-                        o.subtype / 4 == 1,
-                    ))
+                },
+            )),
+            ObjectKind::Conveyor => {
+                if o.subtype >= 8 {
+                    return Err(IoError::UnknownMineSubtype(o.subtype));
                 }
-                ObjectKind::Combiner => BuildingKind::Combiner(Combiner::new(match o.subtype {
+                Building::Conveyor(Conveyor::new(
+                    pos,
+                    match o.subtype % 4 {
+                        0 => Rotation::Up,
+                        1 => Rotation::Right,
+                        2 => Rotation::Down,
+                        3 => Rotation::Left,
+                        _ => unreachable!(),
+                    },
+                    o.subtype / 4 == 1,
+                ))
+            }
+            ObjectKind::Combiner => Building::Combiner(Combiner::new(
+                pos,
+                match o.subtype {
                     0 => Rotation::Up,
                     1 => Rotation::Right,
                     2 => Rotation::Down,
                     3 => Rotation::Left,
                     t => return Err(IoError::UnknownCombinerSubtype(t)),
-                })),
-                ObjectKind::Factory => BuildingKind::Factory(Factory::new(match o.subtype {
+                },
+            )),
+            ObjectKind::Factory => Building::Factory(Factory::new(
+                pos,
+                match o.subtype {
                     0 => ProductType::Type0,
                     1 => ProductType::Type1,
                     2 => ProductType::Type2,
@@ -122,8 +130,8 @@ impl TryFrom<&Object> for Building {
                     6 => ProductType::Type6,
                     7 => ProductType::Type7,
                     t => return Err(IoError::UnknownFactorySubtype(t)),
-                })),
-            },
+                },
+            )),
         })
     }
 }

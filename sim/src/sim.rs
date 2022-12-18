@@ -67,98 +67,7 @@ impl Buildings {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Building {
-    pub pos: Pos,
-    pub kind: BuildingKind,
-}
-
-impl Building {
-    pub fn new(pos: impl Into<Pos>, kind: BuildingKind) -> Self {
-        Self {
-            pos: pos.into(),
-            kind,
-        }
-    }
-
-    pub fn deposit(
-        pos: impl Into<Pos>,
-        resource_type: ResourceType,
-        width: u8,
-        height: u8,
-    ) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Deposit(Deposit::new(resource_type, width, height)),
-        }
-    }
-
-    pub fn obstacle(pos: impl Into<Pos>, width: u8, height: u8) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Obstacle(Obstacle::new(width, height)),
-        }
-    }
-
-    pub fn mine(pos: impl Into<Pos>, rotation: Rotation) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Mine(Mine::new(rotation)),
-        }
-    }
-
-    pub fn conveyor(pos: impl Into<Pos>, rotation: Rotation, big: bool) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Conveyor(Conveyor::new(rotation, big)),
-        }
-    }
-
-    pub fn combiner(pos: impl Into<Pos>, rotation: Rotation) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Combiner(Combiner::new(rotation)),
-        }
-    }
-
-    pub fn factory(pos: impl Into<Pos>, product_type: ProductType) -> Self {
-        Self {
-            pos: pos.into(),
-            kind: BuildingKind::Factory(Factory::new(product_type)),
-        }
-    }
-
-    pub fn output_resources(&mut self) -> Resources {
-        match &mut self.kind {
-            BuildingKind::Deposit(deposit) => {
-                let num = deposit.resources.min(3);
-                deposit.resources -= num;
-
-                let mut res = Resources::default();
-                res.values[deposit.resource_type as usize] += num;
-                res
-            }
-            BuildingKind::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
-            BuildingKind::Mine(mine) => std::mem::take(&mut mine.resources),
-            BuildingKind::Conveyor(conveyor) => std::mem::take(&mut conveyor.resources),
-            BuildingKind::Combiner(combiner) => std::mem::take(&mut combiner.resources),
-            BuildingKind::Factory(_) => unreachable!("Facotories cannot output resources"),
-        }
-    }
-
-    pub fn input_resources(&mut self, res: Resources) {
-        match &mut self.kind {
-            BuildingKind::Deposit(_) => unreachable!("Deposits cannot input resources"),
-            BuildingKind::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
-            BuildingKind::Mine(mine) => mine.resources += res,
-            BuildingKind::Conveyor(conveyor) => conveyor.resources += res,
-            BuildingKind::Combiner(combiner) => combiner.resources += res,
-            BuildingKind::Factory(factory) => factory.resources += res,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum BuildingKind {
+pub enum Building {
     Deposit(Deposit),
     Obstacle(Obstacle),
     Mine(Mine),
@@ -167,20 +76,64 @@ pub enum BuildingKind {
     Factory(Factory),
 }
 
+impl Building {
+    pub fn pos(&self) -> Pos {
+        match self {
+            Building::Deposit(d) => d.pos,
+            Building::Obstacle(o) => o.pos,
+            Building::Mine(m) => m.pos,
+            Building::Conveyor(c) => c.pos,
+            Building::Combiner(c) => c.pos,
+            Building::Factory(f) => f.pos,
+        }
+    }
+
+    pub fn output_resources(&mut self) -> Resources {
+        match self {
+            Building::Deposit(deposit) => {
+                let num = deposit.resources.min(3);
+                deposit.resources -= num;
+
+                let mut res = Resources::default();
+                res.values[deposit.resource_type as usize] += num;
+                res
+            }
+            Building::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
+            Building::Mine(mine) => std::mem::take(&mut mine.resources),
+            Building::Conveyor(conveyor) => std::mem::take(&mut conveyor.resources),
+            Building::Combiner(combiner) => std::mem::take(&mut combiner.resources),
+            Building::Factory(_) => unreachable!("Facotories cannot output resources"),
+        }
+    }
+
+    pub fn input_resources(&mut self, res: Resources) {
+        match self {
+            Building::Deposit(_) => unreachable!("Deposits cannot input resources"),
+            Building::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
+            Building::Mine(mine) => mine.resources += res,
+            Building::Conveyor(conveyor) => conveyor.resources += res,
+            Building::Combiner(combiner) => combiner.resources += res,
+            Building::Factory(factory) => factory.resources += res,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Deposit {
-    pub resource_type: ResourceType,
+    pub pos: Pos,
     pub width: u8,
     pub height: u8,
+    pub resource_type: ResourceType,
     pub resources: u16,
 }
 
 impl Deposit {
-    pub fn new(resource_type: ResourceType, width: u8, height: u8) -> Self {
+    pub fn new(pos: impl Into<Pos>, width: u8, height: u8, resource_type: ResourceType) -> Self {
         Self {
-            resource_type,
+            pos: pos.into(),
             width,
             height,
+            resource_type,
             resources: width as u16 * height as u16 * 5,
         }
     }
@@ -188,25 +141,32 @@ impl Deposit {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Obstacle {
+    pub pos: Pos,
     pub width: u8,
     pub height: u8,
 }
 
 impl Obstacle {
-    pub fn new(width: u8, height: u8) -> Self {
-        Self { width, height }
+    pub fn new(pos: impl Into<Pos>, width: u8, height: u8) -> Self {
+        Self {
+            pos: pos.into(),
+            width,
+            height,
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mine {
+    pub pos: Pos,
     pub rotation: Rotation,
     pub resources: Resources,
 }
 
 impl Mine {
-    pub fn new(rotation: Rotation) -> Self {
+    pub fn new(pos: impl Into<Pos>, rotation: Rotation) -> Self {
         Self {
+            pos: pos.into(),
             rotation,
             resources: Resources::default(),
         }
@@ -215,14 +175,16 @@ impl Mine {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Conveyor {
+    pub pos: Pos,
     pub rotation: Rotation,
     pub big: bool,
     pub resources: Resources,
 }
 
 impl Conveyor {
-    pub fn new(rotation: Rotation, big: bool) -> Self {
+    pub fn new(pos: impl Into<Pos>, rotation: Rotation, big: bool) -> Self {
         Self {
+            pos: pos.into(),
             rotation,
             big,
             resources: Resources::default(),
@@ -232,13 +194,15 @@ impl Conveyor {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Combiner {
+    pub pos: Pos,
     pub rotation: Rotation,
     pub resources: Resources,
 }
 
 impl Combiner {
-    pub fn new(rotation: Rotation) -> Self {
+    pub fn new(pos: impl Into<Pos>, rotation: Rotation) -> Self {
         Self {
+            pos: pos.into(),
             rotation,
             resources: Resources::default(),
         }
@@ -247,13 +211,15 @@ impl Combiner {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Factory {
+    pub pos: Pos,
     pub product_type: ProductType,
     pub resources: Resources,
 }
 
 impl Factory {
-    pub fn new(product_type: ProductType) -> Self {
+    pub fn new(pos: impl Into<Pos>, product_type: ProductType) -> Self {
         Self {
+            pos: pos.into(),
             product_type,
             resources: Resources::default(),
         }
@@ -422,10 +388,8 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             unchanged &= con.resources.is_empty();
         }
 
-        for f in sim.buildings.iter_mut().filter_map(|b| {
-            let BuildingKind::Factory(f) = &mut b.kind else { return None; };
-            Some(f)
-        }) {
+        for b in sim.buildings.iter_mut() {
+            let Building::Factory(f) = b else { continue };
             let product = &sim.products.values[f.product_type as usize];
             if f.resources.has_at_least(&product.resources) {
                 let times = (f.resources / product.resources)

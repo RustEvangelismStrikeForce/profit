@@ -1,7 +1,7 @@
 use core::fmt;
 use core::fmt::Write;
 
-use crate::{Resources, Sim, Building, BuildingKind, Error};
+use crate::{Building, Error, Resources, Sim};
 
 pub const MAX_BOARD_SIZE: i8 = 100;
 pub const FACTORY_SIZE: i8 = 5;
@@ -630,10 +630,10 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
     let res = || -> crate::Result<()> {
         sim.buildings.push(building);
         let building = &sim.buildings[id];
-        let pos = building.pos;
 
-        match &building.kind {
-            BuildingKind::Deposit(deposit) => {
+        match &building {
+            Building::Deposit(deposit) => {
+                let pos = deposit.pos;
                 let height = deposit.height as i8;
                 let width = deposit.width as i8;
                 for y in (pos.y)..(pos.y + height) {
@@ -653,7 +653,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                     check_adjacent_cells(sim, (x, pos.y + height - 1), (x, pos.y + height))?;
                 }
             }
-            BuildingKind::Obstacle(obstacle) => {
+            Building::Obstacle(obstacle) => {
+                let pos = obstacle.pos;
                 let height = obstacle.height;
                 let width = obstacle.width;
                 for y in 0..height {
@@ -662,7 +663,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                     }
                 }
             }
-            BuildingKind::Mine(mine) => {
+            Building::Mine(mine) => {
+                let pos = mine.pos;
                 let rot = mine.rotation as usize;
                 for (p, ty) in MINE_CELLS[rot] {
                     place_cell(sim, pos + p, Cell::new(ty, id))?;
@@ -671,7 +673,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                     check_adjacent_cells(sim, pos + a, pos + b)?;
                 }
             }
-            BuildingKind::Conveyor(conveyor) => {
+            Building::Conveyor(conveyor) => {
+                let pos = conveyor.pos;
                 let rot = conveyor.rotation as usize;
                 if conveyor.big {
                     for (p, ty) in BIG_CONVEYOR_CELLS[rot] {
@@ -689,7 +692,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                     }
                 }
             }
-            BuildingKind::Combiner(combiner) => {
+            Building::Combiner(combiner) => {
+                let pos = combiner.pos;
                 let rot = combiner.rotation as usize;
                 for (p, ty) in COMBINER_CELLS[rot] {
                     place_cell(sim, pos + p, Cell::new(ty, id))?;
@@ -698,7 +702,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
                     check_adjacent_cells(sim, pos + a, pos + b)?;
                 }
             }
-            BuildingKind::Factory(_) => {
+            Building::Factory(factory) => {
+                let pos = factory.pos;
                 for y in (pos.y)..(pos.y + FACTORY_SIZE) {
                     for x in (pos.x)..(pos.x + FACTORY_SIZE) {
                         place_cell(sim, (x, y), Cell::input(id))?;
@@ -755,8 +760,8 @@ fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<(
     }
 
     if let Some(other) = sim.board[pos] {
-        match (&sim.buildings[other.id].kind, &sim.buildings[cell.id].kind) {
-            (BuildingKind::Conveyor(_), BuildingKind::Conveyor(_))
+        match (&sim.buildings[other.id], &sim.buildings[cell.id]) {
+            (Building::Conveyor(_), Building::Conveyor(_))
                 if cell.kind != CellKind::Inert || other.kind != CellKind::Inert => {}
             _ => return Err(Error::Interseciton(pos)),
         }
@@ -797,11 +802,11 @@ fn check_connection(
     let building_a = &sim.buildings[output.id];
     let building_b = &sim.buildings[input.id];
 
-    match &building_a.kind {
-        BuildingKind::Deposit(_) => match &building_b.kind {
-            BuildingKind::Deposit(_) => unreachable!(),
-            BuildingKind::Obstacle(_) => unreachable!(),
-            BuildingKind::Mine(_) => {
+    match &building_a {
+        Building::Deposit(_) => match &building_b {
+            Building::Deposit(_) => unreachable!(),
+            Building::Obstacle(_) => unreachable!(),
+            Building::Mine(_) => {
                 let con = Connection::new(output.id, output_pos, input.id, input_pos);
 
                 for c in sim.connections.iter() {
@@ -813,16 +818,16 @@ fn check_connection(
                 sim.connections.push(con);
                 Ok(())
             }
-            BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
+            Building::Conveyor(_) | Building::Combiner(_) | Building::Factory(_) => {
                 Err(Error::DepositEgress(input_pos))
             }
         },
-        BuildingKind::Obstacle(_) => unreachable!(),
-        BuildingKind::Mine(_) => match &building_b.kind {
-            BuildingKind::Deposit(_) => unreachable!(),
-            BuildingKind::Obstacle(_) => unreachable!(),
-            BuildingKind::Mine(_) => Err(Error::MineEgress(output_pos)),
-            BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) | BuildingKind::Factory(_) => {
+        Building::Obstacle(_) => unreachable!(),
+        Building::Mine(_) => match &building_b {
+            Building::Deposit(_) => unreachable!(),
+            Building::Obstacle(_) => unreachable!(),
+            Building::Mine(_) => Err(Error::MineEgress(output_pos)),
+            Building::Conveyor(_) | Building::Combiner(_) | Building::Factory(_) => {
                 let con = Connection::new(output.id, output_pos, input.id, input_pos);
 
                 for c in sim.connections.iter() {
@@ -835,13 +840,13 @@ fn check_connection(
                 Ok(())
             }
         },
-        BuildingKind::Conveyor(_) | BuildingKind::Combiner(_) => match &building_b.kind {
-            BuildingKind::Deposit(_) => unreachable!(),
-            BuildingKind::Obstacle(_) => unreachable!(),
-            BuildingKind::Mine(_)
-            | BuildingKind::Conveyor(_)
-            | BuildingKind::Combiner(_)
-            | BuildingKind::Factory(_) => {
+        Building::Conveyor(_) | Building::Combiner(_) => match &building_b {
+            Building::Deposit(_) => unreachable!(),
+            Building::Obstacle(_) => unreachable!(),
+            Building::Mine(_)
+            | Building::Conveyor(_)
+            | Building::Combiner(_)
+            | Building::Factory(_) => {
                 let con = Connection::new(output.id, output_pos, input.id, input_pos);
 
                 for c in sim.connections.iter() {
@@ -854,6 +859,6 @@ fn check_connection(
                 Ok(())
             }
         },
-        BuildingKind::Factory(_) => unreachable!(),
+        Building::Factory(_) => unreachable!(),
     }
 }

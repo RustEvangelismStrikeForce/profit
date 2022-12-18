@@ -1,16 +1,16 @@
 use profit_sim as sim;
-use sim::{pos, BuildingKind, Id, Pos, Sim, MAX_BOARD_SIZE};
+use sim::{pos, Building, Id, Pos, Sim, MAX_BOARD_SIZE};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Regions {
-    pub buildings: Vec<Id>,
+    pub deposits: Vec<Id>,
     pub cells: Vec<Pos>,
     pub indices: Vec<(usize, usize)>,
 }
 
 impl Regions {
     pub fn new_region(&mut self) {
-        self.indices.push((self.buildings.len(), self.cells.len()));
+        self.indices.push((self.deposits.len(), self.cells.len()));
     }
 
     pub fn len(&self) -> usize {
@@ -21,11 +21,11 @@ impl Regions {
         let (b, c) = self.indices[idx];
         match self.indices.get(idx + 1) {
             Some(&(nb, nc)) => Region {
-                buildings: &self.buildings[b..nb],
+                deposits: &self.deposits[b..nb],
                 cells: &self.cells[c..nc],
             },
             None => Region {
-                buildings: &self.buildings[b..],
+                deposits: &self.deposits[b..],
                 cells: &self.cells[c..],
             },
         }
@@ -35,11 +35,11 @@ impl Regions {
         let (b, c) = self.indices[idx];
         match self.indices.get(idx + 1) {
             Some(&(nb, nc)) => RegionMut {
-                buildings: &mut self.buildings[b..nb],
+                deposits: &mut self.deposits[b..nb],
                 cells: &mut self.cells[c..nc],
             },
             None => RegionMut {
-                buildings: &mut self.buildings[b..],
+                deposits: &mut self.deposits[b..],
                 cells: &mut self.cells[c..],
             },
         }
@@ -52,13 +52,13 @@ impl Regions {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Region<'a> {
-    pub buildings: &'a [Id],
+    pub deposits: &'a [Id],
     pub cells: &'a [Pos],
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct RegionMut<'a> {
-    pub buildings: &'a mut [Id],
+    pub deposits: &'a mut [Id],
     pub cells: &'a mut [Pos],
 }
 
@@ -143,9 +143,9 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
     if let Some(c) = sim.board[pos] {
         let building = &sim.buildings[c.id];
         match &building.kind {
-            BuildingKind::Deposit(deposit) => {
-                if !regions.buildings.contains(&c.id) {
-                    regions.buildings.push(c.id);
+            Building::Deposit(deposit) => {
+                if !regions.deposits.contains(&c.id) {
+                    regions.deposits.push(c.id);
                 }
 
                 for y in 0..deposit.height as i8 {
@@ -156,7 +156,7 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
 
                 return;
             }
-            BuildingKind::Obstacle(obstacle) => {
+            Building::Obstacle(obstacle) => {
                 for y in 0..obstacle.height as i8 {
                     for x in 0..obstacle.width as i8 {
                         visited[building.pos + (x, y)] = true;
@@ -165,10 +165,10 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
 
                 return;
             }
-            BuildingKind::Mine(_)
-            | BuildingKind::Conveyor(_)
-            | BuildingKind::Combiner(_)
-            | BuildingKind::Factory(_) => todo!(),
+            Building::Mine(_)
+            | Building::Conveyor(_)
+            | Building::Combiner(_)
+            | Building::Factory(_) => todo!(),
         }
     } else if !regions.cells.contains(&pos) {
         regions.cells.push(pos);
