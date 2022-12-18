@@ -1,5 +1,4 @@
 use core::fmt;
-use core::fmt::Write;
 
 use crate::{Building, Error, Resources, Sim};
 
@@ -422,18 +421,22 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
 
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("\n   ")?;
+        for x in 0..self.width {
+            write!(f, "{x:3}")?;
+        }
         for y in 0..self.height {
+            write!(f, "\n{y:3} ")?;
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {
-                        CellKind::Input => write!(f, "+ ")?,
-                        CellKind::Output => write!(f, "- ")?,
-                        CellKind::Inert => write!(f, "x ")?,
+                        CellKind::Input => write!(f, " i ")?,
+                        CellKind::Output => write!(f, " o ")?,
+                        CellKind::Inert => write!(f, " x ")?,
                     },
-                    None => write!(f, ". ",)?,
+                    None => write!(f, " . ",)?,
                 }
             }
-            f.write_char('\n')?;
         }
 
         Ok(())
@@ -441,8 +444,6 @@ impl fmt::Debug for Board {
 }
 
 impl Board {
-    ///Standard Self new method
-    ///return empty board of size width x height
     pub fn new(width: i8, height: i8) -> Self {
         let width = width.clamp(0, MAX_BOARD_SIZE);
         let height = height.clamp(0, MAX_BOARD_SIZE);
@@ -453,7 +454,7 @@ impl Board {
         }
     }
 
-    pub fn get(&self, pos: impl Into<Pos>) -> Option<Cell> {
+    pub fn get(&self, pos: impl Into<Pos>) -> Option<Option<Cell>> {
         let pos = pos.into();
         if pos.x < 0 || pos.x >= self.width {
             return None;
@@ -461,7 +462,7 @@ impl Board {
         if pos.y < 0 || pos.y >= self.height {
             return None;
         }
-        self[pos]
+        Some(self[pos])
     }
 }
 
@@ -520,7 +521,7 @@ impl Cell {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Id(pub u16);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -546,7 +547,7 @@ pub struct Pos {
 
 impl fmt::Display for Pos {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
+        write!(f, "({:2}, {:2})", self.x, self.y)
     }
 }
 
@@ -593,6 +594,23 @@ impl<P: Into<Pos>> std::ops::SubAssign<P> for Pos {
         let rhs = rhs.into();
         self.x -= rhs.x;
         self.y -= rhs.y;
+    }
+}
+
+impl Pos {
+    pub const fn new(x: i8, y: i8) -> Self {
+        Self { x, y }
+    }
+
+    pub fn manhattan_len(&self) -> u8 {
+        self.x.unsigned_abs() + self.y.unsigned_abs()
+    }
+
+    pub fn rot_90(&self) -> Self {
+        Self {
+            x: self.y,
+            y: -self.x,
+        }
     }
 }
 
@@ -752,14 +770,9 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
 fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<()> {
     let pos = pos.into();
 
-    if pos.y < 0 || pos.y >= sim.board.height as i8 {
-        return Err(Error::OutOfBounds(pos));
-    }
-    if pos.x < 0 || pos.x >= sim.board.width as i8 {
-        return Err(Error::OutOfBounds(pos));
-    }
+    let Some(other) = sim.board.get(pos) else { return Err(Error::OutOfBounds(pos)) };
 
-    if let Some(other) = sim.board[pos] {
+    if let Some(other) = other {
         match (&sim.buildings[other.id], &sim.buildings[cell.id]) {
             (Building::Conveyor(_), Building::Conveyor(_))
                 if cell.kind != CellKind::Inert || other.kind != CellKind::Inert => {}
@@ -781,7 +794,7 @@ fn check_adjacent_cells(
     let pos_b = pos_b.into();
 
     let (a, b) = match (sim.board.get(pos_a), sim.board.get(pos_b)) {
-        (Some(a), Some(b)) => (a, b),
+        (Some(Some(a)), Some(Some(b))) => (a, b),
         (_, _) => return Ok(()),
     };
 

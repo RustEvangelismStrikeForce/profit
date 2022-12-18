@@ -294,6 +294,20 @@ pub struct Resources {
     pub values: [u16; RESOURCE_TYPES],
 }
 
+impl std::ops::Index<ResourceType> for Resources {
+    type Output = u16;
+
+    fn index(&self, index: ResourceType) -> &Self::Output {
+        &self.values[index as usize]
+    }
+}
+
+impl std::ops::IndexMut<ResourceType> for Resources {
+    fn index_mut(&mut self, index: ResourceType) -> &mut Self::Output {
+        &mut self.values[index as usize]
+    }
+}
+
 impl std::ops::AddAssign for Resources {
     fn add_assign(&mut self, rhs: Self) {
         // TODO: simd

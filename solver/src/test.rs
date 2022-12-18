@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use profit_sim as sim;
 use sim::{
-    dto, place_building, pos, Board, Building, Deposit, Id, Obstacle, Pos, Product, Products,
+    dto, place_building, pos, Board, Building, Deposit, Id, Obstacle, Product, Products,
     ResourceType, Resources, Sim, PRODUCT_TYPES,
 };
 

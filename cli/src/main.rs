@@ -11,7 +11,7 @@ fn main() {
 
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
+    println!("{sim:?}");
 
-    // let run = sim::run(&mut sim, task.turns);
-    // dbg!(run);
+    solver::factory_positions(&sim);
 }
