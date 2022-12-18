@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::sim::Pos;
+use crate::board::Pos;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -1,10 +1,7 @@
 use std::fs::File;
 
-use crate::Error;
-use crate::{
-    dto::{self, Object},
-    sim::*,
-};
+use crate::dto::{self, Object};
+use crate::*;
 
 #[test]
 fn place_mine_rotated_up() {
