@@ -48,9 +48,18 @@ impl Regions {
     pub fn iter(&self) -> impl Iterator<Item = Region<'_>> {
         (0..self.len()).map(|i| self.get(i))
     }
+
+    pub fn pop(&mut self) -> Option<()> {
+        let (deposit_idx, cell_idx) = self.indices.pop()?;
+
+        self.deposits.truncate(deposit_idx);
+        self.cells.truncate(cell_idx);
+
+        Some(())
+    }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Region<'a> {
     pub deposits: &'a [Id],
     pub cells: &'a [Pos],
@@ -112,9 +121,14 @@ pub fn find_regions(sim: &Sim) -> Regions {
     let mut regions = Regions::default();
     let mut position = pos(0, 0);
 
+    // TODO: consider filtering out regions that have not enough space to place buildings
     loop {
         regions.new_region();
         find_region(sim, &mut visited, &mut regions, position);
+
+        if regions.get(regions.len() - 1).cells.is_empty() {
+            regions.pop();
+        }
 
         let mut all_visited = true;
         'outer: for y in 0..visited.height {
@@ -140,17 +154,18 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
         return;
     }
 
+    let region = regions.get(regions.len() - 1);
     if let Some(c) = sim.board[pos] {
         let building = &sim.buildings[c.id];
-        match &building.kind {
+        match &building {
             Building::Deposit(deposit) => {
-                if !regions.deposits.contains(&c.id) {
+                if !region.deposits.contains(&c.id) {
                     regions.deposits.push(c.id);
                 }
 
                 for y in 0..deposit.height as i8 {
                     for x in 0..deposit.width as i8 {
-                        visited[building.pos + (x, y)] = true;
+                        visited[deposit.pos + (x, y)] = true;
                     }
                 }
 
@@ -159,7 +174,7 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
             Building::Obstacle(obstacle) => {
                 for y in 0..obstacle.height as i8 {
                     for x in 0..obstacle.width as i8 {
-                        visited[building.pos + (x, y)] = true;
+                        visited[obstacle.pos + (x, y)] = true;
                     }
                 }
 
@@ -170,7 +185,7 @@ fn find_region(sim: &Sim, visited: &mut Visited, regions: &mut Regions, pos: Pos
             | Building::Combiner(_)
             | Building::Factory(_) => todo!(),
         }
-    } else if !regions.cells.contains(&pos) {
+    } else if !region.cells.contains(&pos) {
         regions.cells.push(pos);
     }
 
