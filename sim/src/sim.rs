@@ -16,15 +16,19 @@ pub struct Sim {
     pub buildings: Buildings,
     pub board: Board,
     pub connections: Vec<Connection>,
+    pub turns: u32,
+    pub time: u32,
 }
 
 impl Sim {
-    pub fn new(products: Products, board: Board) -> Self {
+    pub fn new(products: Products, board: Board, turns: u32, time: u32) -> Self {
         Self {
             products,
             buildings: Buildings::default(),
             board,
             connections: Vec::new(),
+            turns,
+            time,
         }
     }
 }

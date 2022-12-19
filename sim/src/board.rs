@@ -421,7 +421,7 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
 
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("\n   ")?;
+        f.write_str("\n    ")?;
         for x in 0..self.width {
             write!(f, "{x:3}")?;
         }
@@ -430,11 +430,11 @@ impl fmt::Debug for Board {
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {
-                        CellKind::Input => write!(f, " i ")?,
-                        CellKind::Output => write!(f, " o ")?,
-                        CellKind::Inert => write!(f, " x ")?,
+                        CellKind::Input => write!(f, "  i")?,
+                        CellKind::Output => write!(f, "  o")?,
+                        CellKind::Inert => write!(f, "  x")?,
                     },
-                    None => write!(f, " . ",)?,
+                    None => write!(f, "  .",)?,
                 }
             }
         }

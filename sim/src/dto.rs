@@ -21,7 +21,7 @@ impl TryFrom<&Task> for Sim {
     fn try_from(task: &Task) -> Result<Self, Self::Error> {
         let products = Products::default();
         let board = Board::new(task.width, task.height);
-        let mut sim = Sim::new(products, board);
+        let mut sim = Sim::new(products, board, task.turns, task.time);
 
         for p in task.products.iter() {
             if p.subtype >= 8 {

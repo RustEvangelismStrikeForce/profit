@@ -8,9 +8,12 @@ use sim::{
 
 use crate::{find_regions, possible_products_per_region, Regions};
 
+const TURNS: u32 = 100;
+const TIME: u32 = 100;
+
 #[test]
 fn find_two_regions() {
-    let mut sim = Sim::new(Products::default(), Board::new(6, 6));
+    let mut sim = Sim::new(Products::default(), Board::new(6, 6), TURNS, TIME);
     place_building(&mut sim, Building::Obstacle(Obstacle::new(pos(3, 0), 1, 6))).unwrap();
 
     let mut regions = find_regions(&sim);
@@ -49,7 +52,7 @@ fn find_two_regions() {
 }
 
 #[test]
-fn find_regions_of_example001() {
+fn find_regions_of_example_002() {
     let input = std::fs::read_to_string("../examples/002.task.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
@@ -84,7 +87,7 @@ fn find_regions_of_example001() {
 fn one_possible_product() {
     let mut products = Products::default();
     products[0] = Product::new(Resources::new([4, 0, 0, 0, 0, 0, 0, 0]), 10);
-    let mut sim = Sim::new(products, Board::new(20, 6));
+    let mut sim = Sim::new(products, Board::new(20, 6), TURNS, TIME);
     place_building(&mut sim, Building::Obstacle(Obstacle::new((3, 0), 1, 6))).unwrap();
     place_building(
         &mut sim,

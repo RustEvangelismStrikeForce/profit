@@ -6,11 +6,11 @@ use profit_sim::{pos, Pos, Sim};
 pub struct DistanceMap {
     pub width: i8,
     pub height: i8,
-    cells: Vec<Option<u8>>,
+    cells: Vec<Option<u16>>,
 }
 
 impl<P: Into<Pos>> std::ops::Index<P> for DistanceMap {
-    type Output = Option<u8>;
+    type Output = Option<u16>;
 
     fn index(&self, pos: P) -> &Self::Output {
         let pos = pos.into();
@@ -37,7 +37,7 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for DistanceMap {
 
 impl fmt::Debug for DistanceMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("\n   ")?;
+        f.write_str("\n    ")?;
         for x in 0..self.width {
             write!(f, "{x:3}")?;
         }
@@ -46,7 +46,7 @@ impl fmt::Debug for DistanceMap {
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(d) => write!(f, "{d:3}")?,
-                    None => write!(f, " . ",)?,
+                    None => write!(f, "  .",)?,
                 }
             }
         }
@@ -64,7 +64,7 @@ impl DistanceMap {
         }
     }
 
-    pub fn get(&self, pos: impl Into<Pos>) -> Option<Option<u8>> {
+    pub fn get(&self, pos: impl Into<Pos>) -> Option<Option<u16>> {
         let pos = pos.into();
         if pos.x < 0 || pos.x >= self.width {
             return None;
@@ -75,7 +75,7 @@ impl DistanceMap {
         Some(self[pos])
     }
 
-    pub fn get_mut(&mut self, pos: impl Into<Pos>) -> Option<&mut Option<u8>> {
+    pub fn get_mut(&mut self, pos: impl Into<Pos>) -> Option<&mut Option<u16>> {
         let pos = pos.into();
         if pos.x < 0 || pos.x >= self.width {
             return None;
@@ -118,11 +118,7 @@ pub fn map_distances(sim: &Sim, pos: Pos, width: u8, height: u8) -> DistanceMap 
     map
 }
 
-fn map_distance(sim: &Sim, map: &mut DistanceMap, pos: Pos, new_dist: u8) {
-    if new_dist > 200 {
-        return;
-    }
-
+fn map_distance(sim: &Sim, map: &mut DistanceMap, pos: Pos, new_dist: u16) {
     // Out of bounds
     let Some(val) = map.get_mut(pos) else { return };
 

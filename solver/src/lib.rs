@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use profit_sim as sim;
-use sim::{Building, Id, Resources, Sim, PRODUCT_TYPES};
+use sim::{Building, Id, Resources, Sim, PRODUCT_TYPES, Pos, FACTORY_SIZE};
 
 pub use distance::*;
 pub use region::*;
@@ -11,17 +11,37 @@ mod region;
 #[cfg(test)]
 mod test;
 
+struct DepositStats {
+    id: Id,
+    weight: f32,
+}
+
+struct CellStats {
+    pos: Pos,
+    min: WeightedDist,
+    avg: WeightedDist,
+    max: WeightedDist,
+
+    score: WeightedDist,
+}
+
+struct WeightedDist {
+    dist: f32,
+    weighted: f32,
+}
+
 // TODO: consider using a `bumpalo` to limit allocations
 pub fn factory_positions(sim: &Sim) {
     let regions = find_regions(sim);
     let possible_products = possible_products_per_region(sim, &regions);
-    let distance_maps = sim
+    let deposit_distance_maps = sim
         .buildings
         .iter()
         .enumerate()
         .filter_map(|(i, b)| {
             let Building::Deposit(deposit) = b else { return None };
             let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
+            dbg!(&map);
             Some((Id(i as u16), map))
         })
         .collect::<HashMap<Id, DistanceMap>>();
@@ -36,71 +56,117 @@ pub fn factory_positions(sim: &Sim) {
                 }
                 let product = sim.products[i].clone();
 
-                // Calculate inverse weights of deposits dependent on the needed and available resources
-                let deposit_weights = region
+                let deposit_stats = region
                     .deposits
                     .iter()
                     .filter_map(|&id| {
-                        let Building::Deposit(deposit) = &sim.buildings[id] else { return None };
+                        let Building::Deposit(deposit) = &sim.buildings[id] else { unreachable!("This should be a deposit") };
 
                         let needed_resources = product.resources[deposit.resource_type];
                         if needed_resources == 0 {
                             return None;
                         }
+                        
                         // TODO: possibly factor in if there are other deposits of the same resource
                         // type in the region
                         let weight = needed_resources as f32 * deposit.resources as f32;
 
-                        Some((id, weight))
+                        Some(DepositStats { id, weight })
                     })
                     .collect::<Vec<_>>();
 
                 let mut factory_positions = region
                     .cells
                     .iter()
-                    .map(|&cell| {
-                        let distances = deposit_weights
-                            .iter()
-                            .map(|(id, _)| distance_maps[id][cell].unwrap()); // The cells in the region should be mapped out, since the deposit is either directly inside it or adjacent
+                    .filter_map(|&pos| {
+                        // check if a factory could even be placed here
+                        for y in 0..FACTORY_SIZE {
+                            for x in 0..FACTORY_SIZE {
+                                let p = pos + (x, y);
+                                // out of bounds
+                                let cell = sim.board.get(pos)?;
+                                // cell is non-empty
+                                if cell.is_some() {
+                                    return None;
+                                }
+                            }
+                        }
 
-                        let sum: f32 = deposit_weights
-                            .iter()
-                            .zip(distances.clone())
-                            .map(|(_, d)| d as f32)
-                            .sum();
+                        let mut min = WeightedDist { dist: 0.0, weighted: 0.0 };
+                        let mut max = WeightedDist { dist: f32::MAX, weighted: f32::MAX };
+                        let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
+                        for d in deposit_stats.iter() {
+                            // find the distance from the outer border
+                            let mut dist = u16::MAX;
+                            for i in 0..FACTORY_SIZE {
+                                let pos = pos + (i, -1);
+                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                    dist = dist.min(d);
+                                }
+                            }
+                            for i in 0..FACTORY_SIZE {
+                                let pos = pos + (i, FACTORY_SIZE);
+                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                    dist = dist.min(d);
+                                }
+                            }
+                            for i in 0..FACTORY_SIZE {
+                                let pos = pos + (-1, i);
+                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                    dist = dist.min(d);
+                                }
+                            }
+                            for i in 0..FACTORY_SIZE {
+                                let pos = pos + (FACTORY_SIZE, i);
+                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                    dist = dist.min(d);
+                                }
+                            }
 
-                        let weight: f32 = deposit_weights
-                            .iter()
-                            .zip(distances)
-                            .map(|((_, w), d)| (1.0 / d as f32) * w)
-                            .sum();
-                        (cell, sum, 1.0 / weight)
+                            // TODO: if the deposit is the only one providing it's resource and the
+                            // dist / 4 < turns then filter out this factory position
+                            let dist = deposit_distance_maps[&d.id][pos].unwrap() as f32;
+                            let weighted = 1.0 / dist * d.weight;
+                            
+                            min.dist = min.dist.min(dist);
+                            min.weighted = min.weighted.min(weighted);
+                            max.dist = max.dist.max(dist);
+                            max.weighted = max.dist.max(weighted);
+                            sum.dist += dist;
+                            sum.weighted += weighted;
+                        }
+                        let len = deposit_stats.len() as f32;
+                        let avg = WeightedDist { dist: sum.dist / len, weighted: sum.weighted / len };
+                       
+                        // TODO: calculate some meaningful score
+                        let score = WeightedDist { dist: avg.dist, weighted: avg.weighted };
+                        Some(CellStats { pos, min, avg, max, score })
                     })
                     .collect::<Vec<_>>();
 
                 // normalize values
-                let mut min_sum = f32::MAX;
-                let mut max_sum: f32 = 0.0;
-                let mut min_weight = f32::MAX;
-                let mut max_weight: f32 = 0.0;
-                for (_, s, r) in factory_positions.iter() {
-                    min_sum = min_sum.min(*s);
-                    max_sum = max_sum.max(*s);
-                    min_weight = min_weight.min(*r);
-                    max_weight = max_weight.max(*r);
-                }
-                dbg!(min_sum, max_sum, min_weight, max_weight);
-                factory_positions.iter_mut().for_each(|(_, s, w)| {
-                    *s = (*s - min_sum) / (max_sum - min_sum);
-                    *w = (*w - min_weight) / (max_weight - min_weight);
-                });
+                // let mut min_sum = f32::MAX;
+                // let mut max_sum: f32 = 0.0;
+                // let mut min_weight = f32::MAX;
+                // let mut max_weight: f32 = 0.0;
+                // for c in factory_positions.iter() {
+                //     min_sum = min_sum.min(*s);
+                //     max_sum = max_sum.max(*s);
+                //     min_weight = min_weight.min(*r);
+                //     max_weight = max_weight.max(*r);
+                // }
+                //
+                // dbg!(min_sum, max_sum, min_weight, max_weight);
+                // factory_positions.iter_mut().for_each(|(_, s, w)| {
+                //     *s = (*s - min_sum) / (max_sum - min_sum);
+                //     *w = (*w - min_weight) / (max_weight - min_weight);
+                // });
 
-                // rank by
-                fn rank(sum: f32, weight: f32) -> f32 {
-                    sum + weight
-                }
-                factory_positions
-                    .sort_by(|&(_, s1, w1), &(_, s2, w2)| rank(s1, w1).total_cmp(&rank(s2, w2)));
+                factory_positions .sort_by(|f1, f2| {
+                    let score1 = f1.score.dist + f1.score.weighted;
+                    let score2 = f2.score.dist + f2.score.weighted;
+                    score1.total_cmp(&score2)
+                });
 
                 Some((product, factory_positions))
             })
@@ -112,11 +178,11 @@ pub fn factory_positions(sim: &Sim) {
         println!("------------------------------");
 
         // TODO
-        for (product, positions) in product_factory_positions {
+        for (product, factory_positions) in product_factory_positions {
             println!("{product:?}");
             println!("------------------------------");
-            for (p, r, s) in positions.iter().take(100) {
-                println!("{p}: {r:10}, {s:10}");
+            for f in factory_positions.iter().take(100) {
+                println!("{}: {:10}, {:10}", f.pos, f.score.dist, f.score.weighted);
             }
         }
     }

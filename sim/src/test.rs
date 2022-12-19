@@ -3,9 +3,12 @@ use std::fs::File;
 use crate::dto::{self, Object};
 use crate::*;
 
+const TURNS: u32 = 100;
+const TIME: u32 = 100;
+
 #[test]
 fn place_mine_rotated_up() {
-    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Mine(Mine::new((3, 3), Rotation::Up));
     place_building(&mut sim, building).unwrap();
@@ -23,7 +26,7 @@ fn place_mine_rotated_up() {
 
 #[test]
 fn place_mine_rotated_right() {
-    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Mine(Mine::new((3, 3), Rotation::Right));
     place_building(&mut sim, building).unwrap();
@@ -41,7 +44,7 @@ fn place_mine_rotated_right() {
 
 #[test]
 fn place_mine_rotated_down() {
-    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Mine(Mine::new((3, 3), Rotation::Down));
     place_building(&mut sim, building).unwrap();
@@ -59,7 +62,7 @@ fn place_mine_rotated_down() {
 
 #[test]
 fn place_mine_rotated_left() {
-    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Mine(Mine::new((3, 3), Rotation::Left));
     place_building(&mut sim, building).unwrap();
@@ -80,7 +83,7 @@ fn deposit_mine_factory() {
     let mut products = Products::default();
     products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
 
-    let mut sim = Sim::new(products, Board::new(20, 10));
+    let mut sim = Sim::new(products, Board::new(20, 10), TURNS, TIME);
 
     let building = Building::Deposit(Deposit::new((0, 0), 4, 4, ResourceType::Type0));
     place_building(&mut sim, building).unwrap();
@@ -104,7 +107,7 @@ fn deposit_mine_factory() {
 
 #[test]
 fn two_ingresses_at_one_egress() {
-    let mut sim = Sim::new(Products::default(), Board::new(10, 10));
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Deposit(Deposit::new((0, 0), 2, 2, ResourceType::Type0));
     place_building(&mut sim, building).unwrap();
@@ -191,7 +194,7 @@ fn convert_task_001_to_sim() {
     let expected = {
         let mut products = Products::default();
         products[0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
-        let mut sim = Sim::new(products, Board::new(30, 20));
+        let mut sim = Sim::new(products, Board::new(30, 20), 50, 300);
 
         let building = Building::Deposit(Deposit::new((1, 1), 5, 5, ResourceType::Type0));
         place_building(&mut sim, building).unwrap();
