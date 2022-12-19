@@ -21,10 +21,8 @@ pub fn factory_positions(sim: &Sim) {
         .enumerate()
         .filter_map(|(i, b)| {
             let Building::Deposit(deposit) = b else { return None };
-            Some((
-                Id(i as u16),
-                map_distances(sim, deposit.pos, deposit.width, deposit.height),
-            ))
+            let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
+            Some((Id(i as u16), map))
         })
         .collect::<HashMap<Id, DistanceMap>>();
 
@@ -71,17 +69,38 @@ pub fn factory_positions(sim: &Sim) {
                             .map(|(_, d)| d as f32)
                             .sum();
 
-                        let rank: f32 = deposit_weights
+                        let weight: f32 = deposit_weights
                             .iter()
                             .zip(distances)
-                            .map(|((_, w), d)| d as f32 * 1.0 / w)
+                            .map(|((_, w), d)| (1.0 / d as f32) * w)
                             .sum();
-                        (cell, 500.0 * rank, sum)
+                        (cell, sum, 1.0 / weight)
                     })
                     .collect::<Vec<_>>();
 
+                // normalize values
+                let mut min_sum = f32::MAX;
+                let mut max_sum: f32 = 0.0;
+                let mut min_weight = f32::MAX;
+                let mut max_weight: f32 = 0.0;
+                for (_, s, r) in factory_positions.iter() {
+                    min_sum = min_sum.min(*s);
+                    max_sum = max_sum.max(*s);
+                    min_weight = min_weight.min(*r);
+                    max_weight = max_weight.max(*r);
+                }
+                dbg!(min_sum, max_sum, min_weight, max_weight);
+                factory_positions.iter_mut().for_each(|(_, s, w)| {
+                    *s = (*s - min_sum) / (max_sum - min_sum);
+                    *w = (*w - min_weight) / (max_weight - min_weight);
+                });
+
+                // rank by
+                fn rank(sum: f32, weight: f32) -> f32 {
+                    sum + weight
+                }
                 factory_positions
-                    .sort_by(|(_, r1, s1), (_, r2, s2)| (r1 + s1).total_cmp(&(r2 + s2)));
+                    .sort_by(|&(_, s1, w1), &(_, s2, w2)| rank(s1, w1).total_cmp(&rank(s2, w2)));
 
                 Some((product, factory_positions))
             })
