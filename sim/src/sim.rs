@@ -375,6 +375,10 @@ impl Resources {
     pub fn is_empty(&self) -> bool {
         self.values.iter().all(|r| *r == 0)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = u16> + '_ {
+        self.values.iter().copied()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use profit_sim as sim;
-use sim::{Building, Id, Resources, Sim, PRODUCT_TYPES, Pos, FACTORY_SIZE};
+use sim::{Building, Id, Resources, Sim, PRODUCT_TYPES, Pos, FACTORY_SIZE, RESOURCE_TYPES, ResourceType};
 
 pub use distance::*;
 pub use region::*;
@@ -13,6 +13,7 @@ mod test;
 
 struct DepositStats {
     id: Id,
+    resource_type: ResourceType,
     weight: f32,
 }
 
@@ -61,8 +62,9 @@ pub fn factory_positions(sim: &Sim) {
                     .iter()
                     .filter_map(|&id| {
                         let Building::Deposit(deposit) = &sim.buildings[id] else { unreachable!("This should be a deposit") };
+                        let resource_type = deposit.resource_type;
 
-                        let needed_resources = product.resources[deposit.resource_type];
+                        let needed_resources = product.resources[resource_type];
                         if needed_resources == 0 {
                             return None;
                         }
@@ -71,7 +73,7 @@ pub fn factory_positions(sim: &Sim) {
                         // type in the region
                         let weight = needed_resources as f32 * deposit.resources as f32;
 
-                        Some(DepositStats { id, weight })
+                        Some(DepositStats { id, resource_type, weight })
                     })
                     .collect::<Vec<_>>();
 
@@ -95,6 +97,7 @@ pub fn factory_positions(sim: &Sim) {
                         let mut min = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut max = WeightedDist { dist: f32::MAX, weighted: f32::MAX };
                         let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
+                        let mut resources_in_reach = [false; RESOURCE_TYPES];
                         for d in deposit_stats.iter() {
                             // find the distance from the outer border
                             let mut dist = u16::MAX;
@@ -123,9 +126,13 @@ pub fn factory_positions(sim: &Sim) {
                                 }
                             }
 
-                            // TODO: if the deposit is the only one providing it's resource and the
-                            // dist / 4 < turns then filter out this factory position
-                            let dist = deposit_distance_maps[&d.id][pos].unwrap() as f32;
+                            // Filter out factory positions that can't reach all necessary resources
+                            // in time
+                            if dist as u32 / 4 < sim.turns {
+                                resources_in_reach[d.resource_type as usize] = true;
+                            }
+
+                            let dist = dist as f32;
                             let weighted = 1.0 / dist * d.weight;
                             
                             min.dist = min.dist.min(dist);
@@ -135,6 +142,13 @@ pub fn factory_positions(sim: &Sim) {
                             sum.dist += dist;
                             sum.weighted += weighted;
                         }
+
+                        for (num, reachable) in product.resources.iter().zip(resources_in_reach.iter()) {
+                            if num > 0 && !reachable {
+                                return None;
+                            }
+                        }
+
                         let len = deposit_stats.len() as f32;
                         let avg = WeightedDist { dist: sum.dist / len, weighted: sum.weighted / len };
                        
