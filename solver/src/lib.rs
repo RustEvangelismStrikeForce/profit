@@ -26,6 +26,7 @@ struct CellStats {
     score: WeightedDist,
 }
 
+#[derive(Debug)]
 struct WeightedDist {
     dist: f32,
     weighted: f32,
@@ -94,8 +95,8 @@ pub fn factory_positions(sim: &Sim) {
                             }
                         }
 
-                        let mut min = WeightedDist { dist: 0.0, weighted: 0.0 };
-                        let mut max = WeightedDist { dist: f32::MAX, weighted: f32::MAX };
+                        let mut min = WeightedDist { dist: f32::MAX, weighted: f32::MAX };
+                        let mut max = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut resources_in_reach = [false; RESOURCE_TYPES];
                         for d in deposit_stats.iter() {
@@ -133,7 +134,7 @@ pub fn factory_positions(sim: &Sim) {
                             }
 
                             let dist = dist as f32;
-                            let weighted = 1.0 / dist * d.weight;
+                            let weighted = 1.0 / (dist + 1.0).ln() * d.weight;
                             
                             min.dist = min.dist.min(dist);
                             min.weighted = min.weighted.min(weighted);
@@ -153,33 +154,33 @@ pub fn factory_positions(sim: &Sim) {
                         let avg = WeightedDist { dist: sum.dist / len, weighted: sum.weighted / len };
                        
                         // TODO: calculate some meaningful score
-                        let score = WeightedDist { dist: avg.dist, weighted: avg.weighted };
+                        let score = WeightedDist {
+                            dist: 1.0 / (avg.dist + 1.0).ln() * (max.dist + 1.0).ln(),
+                            weighted: avg.weighted * (max.weighted + 1.0).ln(),
+                        };
                         Some(CellStats { pos, min, avg, max, score })
                     })
                     .collect::<Vec<_>>();
 
                 // normalize values
-                // let mut min_sum = f32::MAX;
-                // let mut max_sum: f32 = 0.0;
-                // let mut min_weight = f32::MAX;
-                // let mut max_weight: f32 = 0.0;
-                // for c in factory_positions.iter() {
-                //     min_sum = min_sum.min(*s);
-                //     max_sum = max_sum.max(*s);
-                //     min_weight = min_weight.min(*r);
-                //     max_weight = max_weight.max(*r);
-                // }
-                //
-                // dbg!(min_sum, max_sum, min_weight, max_weight);
-                // factory_positions.iter_mut().for_each(|(_, s, w)| {
-                //     *s = (*s - min_sum) / (max_sum - min_sum);
-                //     *w = (*w - min_weight) / (max_weight - min_weight);
-                // });
+                let mut min_score = WeightedDist { dist: f32::MAX, weighted: f32::MAX } ;
+                let mut max_score = WeightedDist { dist: 0.0, weighted: 0.0 } ;
+                for d in factory_positions.iter() {
+                    min_score.dist = min_score.dist.min(d.score.dist);
+                    min_score.weighted = min_score.weighted.min(d.score.weighted);
+                    max_score.dist = max_score.dist.max(d.score.dist);
+                    max_score.weighted = max_score.weighted.max(d.score.weighted);
+                }
+                factory_positions.iter_mut().for_each(|d| {
+                    d.score.dist = (d.score.dist - min_score.dist) / (max_score.dist - min_score.dist);
+                    d.score.weighted = (d.score.weighted - min_score.weighted) / (max_score.weighted - min_score.weighted);
+                });
 
+                // rank by score
                 factory_positions .sort_by(|f1, f2| {
                     let score1 = f1.score.dist + f1.score.weighted;
                     let score2 = f2.score.dist + f2.score.weighted;
-                    score1.total_cmp(&score2)
+                    score2.total_cmp(&score1)
                 });
 
                 Some((product, factory_positions))

@@ -421,12 +421,12 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for Board {
 
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("\n    ")?;
+        f.write_str("\n\x1B[7;94m    \x1B[0m")?;
         for x in 0..self.width {
-            write!(f, "{x:3}")?;
+            write!(f, "\x1B[7;94m{x:3}\x1B[0m")?;
         }
         for y in 0..self.height {
-            write!(f, "\n{y:3} ")?;
+            write!(f, "\n\x1B[1;7;94m{y:3}\x1B[0m ")?;
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {

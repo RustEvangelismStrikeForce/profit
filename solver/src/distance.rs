@@ -37,12 +37,12 @@ impl<P: Into<Pos>> std::ops::IndexMut<P> for DistanceMap {
 
 impl fmt::Debug for DistanceMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("\n    ")?;
+        f.write_str("\n\x1B[7;94m    \x1B[0m")?;
         for x in 0..self.width {
-            write!(f, "{x:3}")?;
+            write!(f, "\x1B[7;94m{x:3}\x1B[0m")?;
         }
         for y in 0..self.height {
-            write!(f, "\n{y:3} ")?;
+            write!(f, "\n\x1B[1;7;94m{y:3}\x1B[0m ")?;
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(d) => write!(f, "{d:3}")?,
@@ -87,16 +87,9 @@ impl DistanceMap {
     }
 }
 
-/// Generate a map of Manhattan distances for a rectangular object
+/// Generate a map of Manhattan distances to a rectangular object
 pub fn map_distances(sim: &Sim, pos: Pos, width: u8, height: u8) -> DistanceMap {
     let mut map = DistanceMap::new(sim.board.width, sim.board.height);
-
-    for y in 0..height as i8 {
-        for x in 0..width as i8 {
-            let pos = pos + (x, y);
-            map[pos] = Some(0);
-        }
-    }
 
     for i in 0..width as i8 {
         let pos = pos + (i, -1);
