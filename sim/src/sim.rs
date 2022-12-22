@@ -35,38 +35,60 @@ impl Sim {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Buildings {
-    pub values: Vec<Building>,
+    pub values: Vec<Option<Building>>,
 }
 
 impl std::ops::Index<Id> for Buildings {
     type Output = Building;
 
     fn index(&self, id: Id) -> &Self::Output {
-        &self.values[id.0 as usize]
+        self.values[id.0 as usize]
+            .as_ref()
+            .expect("Expected building")
     }
 }
 
 impl std::ops::IndexMut<Id> for Buildings {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
-        &mut self.values[id.0 as usize]
+        self.values[id.0 as usize]
+            .as_mut()
+            .expect("Expected building")
     }
 }
 
 impl Buildings {
-    pub fn next_id(&self) -> Id {
-        Id(self.values.len() as u16)
+    pub fn remove(&mut self, id: Id) -> Building {
+        self.values[id.0 as usize]
+            .take()
+            .expect("Expected building")
     }
 
-    pub fn push(&mut self, value: Building) {
-        self.values.push(value)
+    pub fn push(&mut self, value: Building) -> Id {
+        match self.values.iter().position(|b| b.is_none()) {
+            Some(id) => {
+                self.values[id] = Some(value);
+                Id(id as u16)
+            }
+            None => {
+                let id = Id(self.values.len() as u16);
+                self.values.push(Some(value));
+                id
+            }
+        }
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Building> {
-        self.values.iter_mut()
+    pub fn iter(&self) -> impl Iterator<Item = (Id, &Building)> {
+        self.values
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| b.as_ref().map(|b| (Id(i as u16), b)))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Building> {
-        self.values.iter()
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Id, &mut Building)> {
+        self.values
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(i, b)| b.as_mut().map(|b| (Id(i as u16), b)))
     }
 }
 
@@ -410,7 +432,7 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             unchanged &= con.resources.is_empty();
         }
 
-        for b in sim.buildings.iter_mut() {
+        for (_, b) in sim.buildings.iter_mut() {
             let Building::Factory(f) = b else { continue };
             let product = &sim.products.values[f.product_type as usize];
             if f.resources.has_at_least(&product.resources) {

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use profit_sim as sim;
-use sim::{Building, Id, Resources, Sim, PRODUCT_TYPES, Pos, FACTORY_SIZE, RESOURCE_TYPES, ResourceType};
+use sim::{
+    Building, Id, Pos, ResourceType, Resources, Sim, FACTORY_SIZE, PRODUCT_TYPES, RESOURCE_TYPES,
+};
 
 pub use distance::*;
 pub use region::*;
@@ -39,12 +41,11 @@ pub fn factory_positions(sim: &Sim) {
     let deposit_distance_maps = sim
         .buildings
         .iter()
-        .enumerate()
         .filter_map(|(i, b)| {
             let Building::Deposit(deposit) = b else { return None };
             let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
             dbg!(&map);
-            Some((Id(i as u16), map))
+            Some((i, map))
         })
         .collect::<HashMap<Id, DistanceMap>>();
 
@@ -69,7 +70,7 @@ pub fn factory_positions(sim: &Sim) {
                         if needed_resources == 0 {
                             return None;
                         }
-                        
+
                         // TODO: possibly factor in if there are other deposits of the same resource
                         // type in the region
                         let weight = needed_resources as f32 * deposit.resources as f32;
@@ -87,7 +88,7 @@ pub fn factory_positions(sim: &Sim) {
                             for x in 0..FACTORY_SIZE {
                                 let p = pos + (x, y);
                                 // out of bounds
-                                let cell = sim.board.get(pos)?;
+                                let cell = sim.board.get(p)?;
                                 // cell is non-empty
                                 if cell.is_some() {
                                     return None;
@@ -135,7 +136,7 @@ pub fn factory_positions(sim: &Sim) {
 
                             let dist = dist as f32;
                             let weighted = 1.0 / (dist + 1.0).ln() * d.weight;
-                            
+
                             min.dist = min.dist.min(dist);
                             min.weighted = min.weighted.min(weighted);
                             max.dist = max.dist.max(dist);
@@ -152,7 +153,7 @@ pub fn factory_positions(sim: &Sim) {
 
                         let len = deposit_stats.len() as f32;
                         let avg = WeightedDist { dist: sum.dist / len, weighted: sum.weighted / len };
-                       
+
                         // TODO: calculate some meaningful score
                         let score = WeightedDist {
                             dist: 1.0 / (avg.dist + 1.0).ln() * (max.dist + 1.0).ln(),

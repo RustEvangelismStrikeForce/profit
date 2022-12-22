@@ -539,6 +539,16 @@ pub enum Rotation {
     Left = 3,
 }
 
+impl Rotation {
+    pub fn is_vertical(&self) -> bool {
+        *self as u8 ^ 1 == 0
+    }
+
+    pub fn is_horizontal(&self) -> bool {
+        *self as u8 ^ 1 == 1
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Pos {
     pub x: i8,
@@ -642,11 +652,90 @@ impl Connection {
     }
 }
 
-pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
-    let id = sim.buildings.next_id();
+pub fn remove_building(sim: &mut Sim, id: Id) -> Building {
+    let building = sim.buildings.remove(id);
+    let (is_conveyor, is_vertical) = match &building {
+        Building::Conveyor(c) => (true, c.rotation.is_vertical()),
+        _ => (false, false),
+    };
 
+    for y in 0..sim.board.height {
+        for x in 0..sim.board.width {
+            let pos = pos(x, y);
+            if let Some(c) = sim.board[pos] {
+                if c.id == id {
+                    sim.board[pos] = None;
+
+                    // check for conveyor intersections
+                    if is_conveyor && c.kind == CellKind::Inert {
+                        if is_vertical {
+                            let Some(left) =  sim.board.get(pos + (-1, 0)).flatten() else { continue };
+                            let Some(right) =  sim.board.get(pos + (1, 0)).flatten() else { continue };
+
+                            let mut intersecting_id = left.id;
+                            if left.id != right.id {
+                                let mut matches = false;
+                                if let Some(two_left) = sim.board.get(pos + (-2, 0)).flatten() {
+                                    if two_left.id == right.id {
+                                        intersecting_id = right.id;
+                                        matches = true;
+                                    }
+                                }
+                                if let Some(two_right) = sim.board.get(pos + (2, 0)).flatten() {
+                                    if two_right.id == left.id {
+                                        intersecting_id = left.id;
+                                        matches = true;
+                                    }
+                                }
+                                if !matches {
+                                    continue;
+                                }
+                            }
+
+                            sim.board[pos] = Some(Cell::inert(intersecting_id));
+                        } else {
+                            let Some(up) =  sim.board.get(pos + (0, -1)).flatten() else { continue };
+                            let Some(down) =  sim.board.get(pos + (0, 1)).flatten() else { continue };
+
+                            let mut intersecting_id = up.id;
+                            if up.id != down.id {
+                                let mut matches = false;
+                                if let Some(two_up) = sim.board.get(pos + (0, -2)).flatten() {
+                                    if two_up.id == down.id {
+                                        intersecting_id = down.id;
+                                        matches = true;
+                                    }
+                                }
+                                if let Some(two_down) = sim.board.get(pos + (0, 2)).flatten() {
+                                    if two_down.id == up.id {
+                                        intersecting_id = up.id;
+                                        matches = true;
+                                    }
+                                }
+                                if !matches {
+                                    continue;
+                                }
+                            }
+
+                            sim.board[pos] = Some(Cell::inert(intersecting_id));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    sim.connections
+        .retain(|c| c.input_id != id && c.output_id != id);
+
+    building
+}
+
+pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<Id> {
+    let id = sim.buildings.push(building);
+
+    // TODO: try blocks https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
     let res = || -> crate::Result<()> {
-        sim.buildings.push(building);
         let building = &sim.buildings[id];
 
         match &building {
@@ -752,6 +841,8 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
 
     // cleanup if placing the building failed
     if res.is_err() {
+        sim.buildings.values[id.0 as usize] = None;
+
         for c in sim.board.cells.iter_mut() {
             if let Some(cell) = c {
                 if cell.id == id {
@@ -764,7 +855,7 @@ pub fn place_building(sim: &mut Sim, building: Building) -> crate::Result<()> {
             .retain(|c| c.input_id != id && c.output_id != id);
     }
 
-    res
+    res.and(Ok(id))
 }
 
 fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<()> {
