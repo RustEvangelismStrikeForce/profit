@@ -21,10 +21,6 @@ struct DepositStats {
 
 struct CellStats {
     pos: Pos,
-    min: WeightedDist,
-    avg: WeightedDist,
-    max: WeightedDist,
-
     score: WeightedDist,
 }
 
@@ -44,7 +40,7 @@ pub fn factory_positions(sim: &Sim) {
         .filter_map(|(i, b)| {
             let Building::Deposit(deposit) = b else { return None };
             let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
-            dbg!(&map);
+            println!("{map:?}");
             Some((i, map))
         })
         .collect::<HashMap<Id, DistanceMap>>();
@@ -101,29 +97,30 @@ pub fn factory_positions(sim: &Sim) {
                         let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut resources_in_reach = [false; RESOURCE_TYPES];
                         for d in deposit_stats.iter() {
+                            let map = &deposit_distance_maps[&d.id];
                             // find the distance from the outer border
                             let mut dist = u16::MAX;
                             for i in 0..FACTORY_SIZE {
                                 let pos = pos + (i, -1);
-                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
                             for i in 0..FACTORY_SIZE {
                                 let pos = pos + (i, FACTORY_SIZE);
-                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
                             for i in 0..FACTORY_SIZE {
                                 let pos = pos + (-1, i);
-                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
                             for i in 0..FACTORY_SIZE {
                                 let pos = pos + (FACTORY_SIZE, i);
-                                if let Some(Some(d)) = deposit_distance_maps[&d.id].get(pos) {
+                                if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
@@ -159,7 +156,7 @@ pub fn factory_positions(sim: &Sim) {
                             dist: 1.0 / (avg.dist + 1.0).ln() * (max.dist + 1.0).ln(),
                             weighted: avg.weighted * (max.weighted + 1.0).ln(),
                         };
-                        Some(CellStats { pos, min, avg, max, score })
+                        Some(CellStats { pos, score })
                     })
                     .collect::<Vec<_>>();
 

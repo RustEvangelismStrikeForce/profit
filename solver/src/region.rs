@@ -17,6 +17,10 @@ impl Regions {
         self.indices.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.indices.len() == 0
+    }
+
     pub fn get(&self, idx: usize) -> Region<'_> {
         let (b, c) = self.indices[idx];
         match self.indices.get(idx + 1) {
