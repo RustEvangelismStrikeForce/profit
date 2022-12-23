@@ -24,11 +24,8 @@ impl TryFrom<&Task> for Sim {
         let mut sim = Sim::new(products, board, task.turns, task.time);
 
         for p in task.products.iter() {
-            if p.subtype >= 8 {
-                return Err(Error::Io(IoError::UnknownProductSubtype(p.subtype)));
-            }
-            sim.products[p.subtype as usize] =
-                crate::Product::new(Resources::new(p.resources), p.points);
+            let product_type = ProductType::try_from(p.subtype)?;
+            sim.products[product_type] = crate::Product::new(Resources::new(p.resources), p.points);
         }
 
         for o in task.objects.iter() {
@@ -133,6 +130,42 @@ impl TryFrom<&Object> for Building {
                 },
             )),
         })
+    }
+}
+
+impl TryFrom<u8> for ProductType {
+    type Error = IoError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(ProductType::Type0),
+            1 => Ok(ProductType::Type1),
+            2 => Ok(ProductType::Type2),
+            3 => Ok(ProductType::Type3),
+            4 => Ok(ProductType::Type4),
+            5 => Ok(ProductType::Type5),
+            6 => Ok(ProductType::Type6),
+            7 => Ok(ProductType::Type7),
+            t => Err(IoError::UnknownProductSubtype(t)),
+        }
+    }
+}
+
+impl TryFrom<u8> for ResourceType {
+    type Error = IoError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(ResourceType::Type0),
+            1 => Ok(ResourceType::Type1),
+            2 => Ok(ResourceType::Type2),
+            3 => Ok(ResourceType::Type3),
+            4 => Ok(ResourceType::Type4),
+            5 => Ok(ResourceType::Type5),
+            6 => Ok(ResourceType::Type6),
+            7 => Ok(ResourceType::Type7),
+            t => Err(IoError::UnknownResourceType(t)),
+        }
     }
 }
 

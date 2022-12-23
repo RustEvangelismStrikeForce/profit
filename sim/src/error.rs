@@ -29,7 +29,8 @@ impl fmt::Display for Error {
             Error::Io(IoError::UnknownConveyorSubtype(t)) => write!(f, "Unknown conveyor subtype '{t}'"),
             Error::Io(IoError::UnknownCombinerSubtype(t)) => write!(f, "Unknown combiner subtype '{t}'"),
             Error::Io(IoError::UnknownFactorySubtype(t)) => write!(f, "Unknown factory subtype '{t}'"),
-            Error::Io(IoError::UnknownProductSubtype(t)) => write!(f, "Unknown product subtype '{t}'"),
+            Error::Io(IoError::UnknownProductSubtype(t)) => write!(f, "Unknown product type '{t}'"),
+            Error::Io(IoError::UnknownResourceType(t)) => write!(f, "Unknown resource type '{t}'"),
         }
     }
 }
@@ -42,6 +43,7 @@ pub enum IoError {
     UnknownCombinerSubtype(u8),
     UnknownFactorySubtype(u8),
     UnknownProductSubtype(u8),
+    UnknownResourceType(u8),
 }
 
 impl From<IoError> for Error {

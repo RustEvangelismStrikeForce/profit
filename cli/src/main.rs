@@ -13,5 +13,8 @@ fn main() {
     let sim = Sim::try_from(&task).unwrap();
     println!("{sim:?}");
 
-    solver::factory_positions(&sim);
+    match solver::solve(&sim) {
+        Err(e) => println!("{e}"),
+        Ok(_) => println!("hier könnte ihre werbung stehen"),
+    };
 }

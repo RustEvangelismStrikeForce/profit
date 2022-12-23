@@ -257,6 +257,20 @@ pub struct Products {
     values: [Product; 8],
 }
 
+impl std::ops::Index<ProductType> for Products {
+    type Output = Product;
+
+    fn index(&self, index: ProductType) -> &Self::Output {
+        &self.values[index as usize]
+    }
+}
+
+impl std::ops::IndexMut<ProductType> for Products {
+    fn index_mut(&mut self, index: ProductType) -> &mut Self::Output {
+        &mut self.values[index as usize]
+    }
+}
+
 impl std::ops::Deref for Products {
     type Target = [Product; 8];
 
@@ -410,12 +424,12 @@ pub struct SimRun {
     pub at_turn: u32,
 }
 
-pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
+pub fn run(sim: &mut Sim) -> SimRun {
     let mut points = 0;
-    let mut rounds = 0;
+    let mut turn = 0;
     let mut at_turn = 0;
 
-    while rounds < max_rounds {
+    while turn < sim.turns {
         let mut unchanged = true;
 
         // start of the round
@@ -436,16 +450,15 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             let Building::Factory(f) = b else { continue };
             let product = &sim.products.values[f.product_type as usize];
             if f.resources.has_at_least(&product.resources) {
-                let times = (f.resources / product.resources)
-                    .values
+                let count = (f.resources / product.resources)
                     .iter()
                     .min()
-                    .map_or(0, |t| *t);
+                    .unwrap_or_default();
 
-                if times > 0 {
-                    f.resources -= product.resources * Resources::new([times; 8]);
-                    points += product.points * times as u32;
-                    at_turn = rounds + 1;
+                if count > 0 {
+                    f.resources -= product.resources * Resources::new([count; 8]);
+                    points += product.points * count as u32;
+                    at_turn = turn + 1;
                     unchanged = false;
                 }
             }
@@ -455,11 +468,11 @@ pub fn run(sim: &mut Sim, max_rounds: u32) -> SimRun {
             break;
         }
 
-        rounds += 1;
+        turn += 1;
     }
 
     SimRun {
-        rounds,
+        rounds: turn,
         points,
         at_turn,
     }

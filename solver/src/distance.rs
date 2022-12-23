@@ -93,19 +93,19 @@ pub fn map_distances(sim: &Sim, pos: Pos, width: u8, height: u8) -> DistanceMap 
 
     for i in 0..width as i8 {
         let pos = pos + (i, -1);
-        map_distance(sim, &mut map, pos, 1);
+        map_distance(sim, &mut map, pos, 0);
     }
     for i in 0..width as i8 {
         let pos = pos + (i, height as i8);
-        map_distance(sim, &mut map, pos, 1);
+        map_distance(sim, &mut map, pos, 0);
     }
     for i in 0..height as i8 {
         let pos = pos + (-1, i);
-        map_distance(sim, &mut map, pos, 1);
+        map_distance(sim, &mut map, pos, 0);
     }
     for i in 0..height as i8 {
         let pos = pos + (height as i8, i);
-        map_distance(sim, &mut map, pos, 1);
+        map_distance(sim, &mut map, pos, 0);
     }
 
     map

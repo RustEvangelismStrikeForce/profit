@@ -81,7 +81,7 @@ fn place_mine_rotated_left() {
 #[test]
 fn deposit_mine_factory() {
     let mut products = Products::default();
-    products[0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
+    products[ProductType::Type0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
 
     let mut sim = Sim::new(products, Board::new(20, 10), TURNS, TIME);
 
@@ -94,7 +94,7 @@ fn deposit_mine_factory() {
     let building = Building::Factory(Factory::new((8, 0), ProductType::Type0));
     place_building(&mut sim, building).unwrap();
 
-    let run = run(&mut sim, 100);
+    let run = run(&mut sim);
     assert_eq!(
         run,
         SimRun {
@@ -193,7 +193,7 @@ fn convert_task_001_to_sim() {
 
     let expected = {
         let mut products = Products::default();
-        products[0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
+        products[ProductType::Type0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
         let mut sim = Sim::new(products, Board::new(30, 20), 50, 300);
 
         let building = Building::Deposit(Deposit::new((1, 1), 5, 5, ResourceType::Type0));
@@ -420,7 +420,7 @@ fn run_002_solution_001() {
     let input = std::fs::read_to_string("../examples/002.solution.001.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
-    let run = run(&mut sim, task.turns);
+    let run = run(&mut sim);
     assert_eq!(
         run,
         SimRun {
@@ -436,7 +436,7 @@ fn run_002_solution_002() {
     let input = std::fs::read_to_string("../examples/002.solution.002.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
-    let run = run(&mut sim, task.turns);
+    let run = run(&mut sim);
     assert_eq!(
         run,
         SimRun {
