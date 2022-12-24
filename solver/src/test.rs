@@ -49,8 +49,8 @@ fn find_two_regions() {
 }
 
 #[test]
-fn find_regions_of_example_002() {
-    let input = std::fs::read_to_string("../examples/002.task.json").unwrap();
+fn find_regions_of_task_002() {
+    let input = std::fs::read_to_string("../tasks/002/task.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
 

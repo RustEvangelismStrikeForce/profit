@@ -1,5 +1,5 @@
 [
-    {"type":"combiner","x":9,"y":1,"subtype":3},    
+    {"type":"combiner","x":9,"y":1,"subtype":3},
     {"type":"conveyor","x":11,"y":0,"subtype":4},
     {"type":"mine","x":19,"y":3,"subtype":2},
     {"type":"factory","x":13,"y":3,"subtype":0},

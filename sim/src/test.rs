@@ -125,7 +125,7 @@ fn two_ingresses_at_one_egress() {
 
 #[test]
 fn deserialize_task_001() {
-    let file = File::open("../examples/001.task.json").unwrap();
+    let file = File::open("../tasks/001/task.json").unwrap();
     let serialized: dto::Task = serde_json::from_reader(file).unwrap();
     assert_eq!(
         serialized,
@@ -187,7 +187,7 @@ fn deserialize_task_001() {
 
 #[test]
 fn convert_task_001_to_sim() {
-    let file = File::open("../examples/001.task.json").unwrap();
+    let file = File::open("../tasks/001/task.json").unwrap();
     let task: dto::Task = serde_json::from_reader(file).unwrap();
     let sim = Sim::try_from(&task).unwrap();
 
@@ -219,7 +219,7 @@ fn convert_task_001_to_sim() {
 
 #[test]
 fn deserialize_solution_001() {
-    let file = File::open("../examples/001.solution.json").unwrap();
+    let file = File::open("../solutions/001/solution.json").unwrap();
     let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
     let objects: Vec<dto::Object> = vec![
         Object {
@@ -416,9 +416,9 @@ fn serialize_solution() {
 }
 
 #[test]
-fn run_002_solution_001() {
-    let input = std::fs::read_to_string("../examples/002.solution.001.json").unwrap();
-    let task: dto::Task = serde_json::from_str(&input).unwrap();
+fn run_task_002_solution_001() {
+    let run_task_002_solution_002 = std::fs::read_to_string("../tasks/002/solution_001.json").unwrap();
+    let task: dto::Task = serde_json::from_str(&run_task_002_solution_002).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
     let run = run(&mut sim);
     assert_eq!(
@@ -433,7 +433,7 @@ fn run_002_solution_001() {
 
 #[test]
 fn run_002_solution_002() {
-    let input = std::fs::read_to_string("../examples/002.solution.002.json").unwrap();
+    let input = std::fs::read_to_string("../tasks/002/solution_002.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
     let run = run(&mut sim);
