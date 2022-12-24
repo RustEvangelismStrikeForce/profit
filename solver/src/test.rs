@@ -1,10 +1,7 @@
 use std::cmp::Ordering;
 
 use profit_sim as sim;
-use sim::{
-    dto, place_building, pos, Board, Building, Deposit, Id, Obstacle, Product, Products,
-    ResourceType, Resources, Sim, PRODUCT_TYPES,
-};
+use sim::{dto, place_building, pos, Board, Building, Id, Obstacle, Products, Sim};
 
 use crate::{find_regions, Regions};
 
@@ -82,28 +79,3 @@ fn find_regions_of_example_002() {
 
     assert_eq!(regions, expected);
 }
-
-// TODO
-// #[test]
-// fn one_possible_product() {
-//     let mut products = Products::default();
-//     products[0] = Product::new(Resources::new([4, 0, 0, 0, 0, 0, 0, 0]), 10);
-//     let mut sim = Sim::new(products, Board::new(20, 6), TURNS, TIME);
-//     place_building(&mut sim, Building::Obstacle(Obstacle::new((3, 0), 1, 6))).unwrap();
-//     place_building(
-//         &mut sim,
-//         Building::Deposit(Deposit::new((5, 0), 2, 2, ResourceType::Type0)),
-//     )
-//     .unwrap();
-//
-//     let regions = find_regions(&sim);
-//
-//     let possible_products = possible_products_per_region(&sim, &regions);
-//     assert_eq!(
-//         possible_products,
-//         [
-//             [false; PRODUCT_TYPES],
-//             [true, false, false, false, false, false, false, false]
-//         ]
-//     );
-// }

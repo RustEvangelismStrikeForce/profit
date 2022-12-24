@@ -257,6 +257,14 @@ pub struct Products {
     values: [Product; 8],
 }
 
+impl Default for Products {
+    fn default() -> Self {
+        Self {
+            values: array::from_fn(|_| Product::default()),
+        }
+    }
+}
+
 impl std::ops::Index<ProductType> for Products {
     type Output = Product;
 
@@ -271,25 +279,9 @@ impl std::ops::IndexMut<ProductType> for Products {
     }
 }
 
-impl std::ops::Deref for Products {
-    type Target = [Product; 8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.values
-    }
-}
-
-impl std::ops::DerefMut for Products {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.values
-    }
-}
-
-impl Default for Products {
-    fn default() -> Self {
-        Self {
-            values: array::from_fn(|_| Product::default()),
-        }
+impl Products {
+    pub fn iter(&self) -> impl Iterator<Item = &Product> {
+        self.values.iter()
     }
 }
 

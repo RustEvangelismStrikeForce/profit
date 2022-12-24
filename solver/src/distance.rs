@@ -1,6 +1,7 @@
 use core::fmt;
+use std::collections::HashMap;
 
-use profit_sim::{pos, Pos, Sim};
+use profit_sim::{pos, Building, Id, Pos, Sim};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DistanceMap {
@@ -85,6 +86,17 @@ impl DistanceMap {
         }
         Some(&mut self[pos])
     }
+}
+
+pub fn map_deposit_distances(sim: &Sim) -> HashMap<Id, DistanceMap> {
+    sim.buildings
+        .iter()
+        .filter_map(|(i, b)| {
+            let Building::Deposit(deposit) = b else { return None };
+            let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
+            Some((i, map))
+        })
+        .collect()
 }
 
 /// Generate a map of Manhattan distances to a rectangular object

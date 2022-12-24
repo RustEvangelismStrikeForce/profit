@@ -11,6 +11,12 @@ mod region;
 #[cfg(test)]
 mod test;
 
+struct ProductStats {
+    product_type: ProductType,
+    deposit_stats: Vec<DepositStats>,
+    factory_stats: Vec<FactoryStats>,
+}
+
 struct DepositStats {
     id: Id,
     resource_type: ResourceType,
@@ -18,7 +24,7 @@ struct DepositStats {
     weight: f32,
 }
 
-struct CellStats {
+struct FactoryStats {
     pos: Pos,
     score: Score,
     resources_in_reach: Resources,
@@ -42,16 +48,7 @@ struct Score {
 // TODO: consider using a `bumpalo` to limit allocations
 pub fn solve(sim: &Sim) -> sim::Result<()> {
     let regions = find_regions(sim);
-    let deposit_distance_maps = sim
-        .buildings
-        .iter()
-        .filter_map(|(i, b)| {
-            let Building::Deposit(deposit) = b else { return None };
-            let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
-            println!("{map:?}");
-            Some((i, map))
-        })
-        .collect::<HashMap<Id, DistanceMap>>();
+    let deposit_distance_maps = map_deposit_distances(sim);
 
     for region in regions.iter() {
         let mut available_resources = Resources::default();
@@ -60,7 +57,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
             available_resources.values[deposit.resource_type as usize] += deposit.resources;
         }
 
-        let product_factory_stats = sim.products.iter()
+        let product_stats = sim.products.iter()
             .enumerate()
             .filter_map(|(i, product)| {
                 if product.points == 0 {
@@ -71,6 +68,8 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                 if !available_resources.has_at_least(&product.resources) {
                     return None;
                 }
+
+                let product_type = ProductType::try_from(i as u8).unwrap();
 
                 // calculate a weight for a deposit and filter out ones that don't provide any
                 // resources needed for the current product
@@ -95,7 +94,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                     })
                     .collect::<Vec<_>>();
 
-                let mut factory_positions = region
+                let mut factory_stats = region
                     .cells
                     .iter()
                     .filter_map(|&pos| {
@@ -182,14 +181,14 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                             max_products: 1.0 / (max_products + 1.0).ln(),
                         };
 
-                        Some(CellStats { pos, score, resources_in_reach, deposits_in_reach })
+                        Some(FactoryStats { pos, score, resources_in_reach, deposits_in_reach })
                     })
                     .collect::<Vec<_>>();
 
-                // normalize scores
+                // normalize score components
                 let mut min_score = Score { dist: f32::MAX, weighted: f32::MAX, max_products: f32::MAX };
                 let mut max_score = Score { dist: 0.0, weighted: 0.0, max_products: 0.0 };
-                for d in factory_positions.iter() {
+                for d in factory_stats.iter() {
                     min_score.dist = min_score.dist.min(d.score.dist);
                     min_score.weighted = min_score.weighted.min(d.score.weighted);
                     min_score.max_products = min_score.max_products.min(d.score.max_products);
@@ -197,50 +196,76 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                     max_score.weighted = max_score.weighted.max(d.score.weighted);
                     max_score.max_products = max_score.max_products.max(d.score.max_products);
                 }
-                factory_positions.iter_mut().for_each(|d| {
+                factory_stats.iter_mut().for_each(|d| {
                     d.score.dist = (d.score.dist - min_score.dist) / (max_score.dist - min_score.dist);
                     d.score.weighted = (d.score.weighted - min_score.weighted) / (max_score.weighted - min_score.weighted);
                     d.score.max_products = (d.score.max_products - min_score.max_products) / (max_score.max_products - min_score.max_products);
                 });
 
                 // rank by score
-                factory_positions.sort_by(|f1, f2| {
+                factory_stats.sort_by(|f1, f2| {
                     let score1 = f1.score.dist + f1.score.weighted + f1.score.max_products;
                     let score2 = f2.score.dist + f2.score.weighted + f2.score.max_products;
                     score2.total_cmp(&score1)
                 });
 
-                let product_type = ProductType::try_from(i as u8).unwrap();
-                Some((product_type, product, deposit_stats, factory_positions))
+                Some(ProductStats { product_type, deposit_stats, factory_stats })
             }).collect::<Vec<_>>();
 
+        for (id, m) in deposit_distance_maps.iter() {
+            println!("{id:?} {m:?}");
+        }
         println!("------------------------------");
         println!("{:?}", region.deposits);
         println!("------------------------------");
 
         let mut current_sim = sim.clone();
-        for (product_type, product, deposit_stats, factory_positions) in product_factory_stats {
-            println!("{product:?}");
-            println!("------------------------------");
-            for factory_pos in factory_positions.iter() {
-                sim.clone_into(&mut current_sim);
+        // TODO: try out some combinations of factories producing different products and rank those
+        // combinations
+        for product_stats in product_stats.iter() {
+            for factory_stats in product_stats.factory_stats.iter() {
+                current_sim.clone_from(sim);
+
                 println!(
-                    "{}: {:10}, {:10}",
-                    factory_pos.pos, factory_pos.score.dist, factory_pos.score.weighted
+                    "{}: {:16}, {:16}, {:16}",
+                    factory_stats.pos,
+                    factory_stats.score.dist,
+                    factory_stats.score.weighted,
+                    factory_stats.score.max_products
                 );
-                let factory = Building::Factory(Factory::new(factory_pos.pos, product_type));
-                let res = sim::place_building(&mut current_sim, factory);
+
+                let res = connect_deposits_and_factory(
+                    &mut current_sim,
+                    region,
+                    &deposit_distance_maps,
+                    product_stats,
+                    factory_stats,
+                );
                 if let Err(e) = res {
                     println!("{e}");
                 }
-
-                for di in factory_pos.deposits_in_reach.iter().copied() {
-                    let deposit = &deposit_stats[di];
-
-                    // TODO: try to connect all the things
-                }
             }
         }
+    }
+
+    Ok(())
+}
+
+fn connect_deposits_and_factory(
+    sim: &mut Sim,
+    region: Region,
+    deposit_distance_maps: &HashMap<Id, DistanceMap>,
+    product_stats: &ProductStats,
+    factory_stats: &FactoryStats,
+) -> sim::Result<()> {
+    let product_type = product_stats.product_type;
+    let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
+    sim::place_building(sim, factory)?;
+
+    for di in factory_stats.deposits_in_reach.iter().copied() {
+        let deposit = &product_stats.deposit_stats[di];
+        let distance_map = &deposit_distance_maps[&deposit.id];
+        // TODO: try to connect all the things
     }
 
     Ok(())
