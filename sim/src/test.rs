@@ -94,7 +94,7 @@ fn deposit_mine_factory() {
     let building = Building::Factory(Factory::new((8, 0), ProductType::Type0));
     place_building(&mut sim, building).unwrap();
 
-    let run = run(&mut sim);
+    let run = run(&sim);
     assert_eq!(
         run,
         SimRun {
@@ -420,7 +420,7 @@ fn run_task_002_solution_001() {
     let run_task_002_solution_002 = std::fs::read_to_string("../tasks/002/solution_001.json").unwrap();
     let task: dto::Task = serde_json::from_str(&run_task_002_solution_002).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
-    let run = run(&mut sim);
+    let run = run(&sim);
     assert_eq!(
         run,
         SimRun {
@@ -436,7 +436,7 @@ fn run_002_solution_002() {
     let input = std::fs::read_to_string("../tasks/002/solution_002.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
-    let run = run(&mut sim);
+    let run = run(&sim);
     assert_eq!(
         run,
         SimRun {

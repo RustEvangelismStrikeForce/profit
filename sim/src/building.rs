@@ -113,35 +113,6 @@ impl Building {
             Building::Factory(f) => f.pos,
         }
     }
-
-    pub fn output_resources(&mut self) -> Resources {
-        match self {
-            Building::Deposit(deposit) => {
-                let num = deposit.resources.min(3);
-                deposit.resources -= num;
-
-                let mut res = Resources::default();
-                res.values[deposit.resource_type as usize] += num;
-                res
-            }
-            Building::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
-            Building::Mine(mine) => std::mem::take(&mut mine.resources),
-            Building::Conveyor(conveyor) => std::mem::take(&mut conveyor.resources),
-            Building::Combiner(combiner) => std::mem::take(&mut combiner.resources),
-            Building::Factory(_) => unreachable!("Facotories cannot output resources"),
-        }
-    }
-
-    pub fn input_resources(&mut self, res: Resources) {
-        match self {
-            Building::Deposit(_) => unreachable!("Deposits cannot input resources"),
-            Building::Obstacle(_) => unreachable!("Obstacles cannot contain resources"),
-            Building::Mine(mine) => mine.resources += res,
-            Building::Conveyor(conveyor) => conveyor.resources += res,
-            Building::Combiner(combiner) => combiner.resources += res,
-            Building::Factory(factory) => factory.resources += res,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -150,7 +121,6 @@ pub struct Deposit {
     pub width: u8,
     pub height: u8,
     pub resource_type: ResourceType,
-    pub resources: u16,
 }
 
 impl Deposit {
@@ -160,8 +130,11 @@ impl Deposit {
             width,
             height,
             resource_type,
-            resources: width as u16 * height as u16 * 5,
         }
+    }
+
+    pub fn resources(&self) -> u16 {
+        5 * self.width as u16 * self.height as u16
     }
 }
 
@@ -186,7 +159,6 @@ impl Obstacle {
 pub struct Mine {
     pub pos: Pos,
     pub rotation: Rotation,
-    pub resources: Resources,
 }
 
 impl Mine {
@@ -194,7 +166,6 @@ impl Mine {
         Self {
             pos: pos.into(),
             rotation,
-            resources: Resources::default(),
         }
     }
 }
@@ -204,7 +175,6 @@ pub struct Conveyor {
     pub pos: Pos,
     pub rotation: Rotation,
     pub big: bool,
-    pub resources: Resources,
 }
 
 impl Conveyor {
@@ -213,7 +183,6 @@ impl Conveyor {
             pos: pos.into(),
             rotation,
             big,
-            resources: Resources::default(),
         }
     }
 }
@@ -222,7 +191,6 @@ impl Conveyor {
 pub struct Combiner {
     pub pos: Pos,
     pub rotation: Rotation,
-    pub resources: Resources,
 }
 
 impl Combiner {
@@ -230,7 +198,6 @@ impl Combiner {
         Self {
             pos: pos.into(),
             rotation,
-            resources: Resources::default(),
         }
     }
 }
@@ -239,7 +206,6 @@ impl Combiner {
 pub struct Factory {
     pub pos: Pos,
     pub product_type: ProductType,
-    pub resources: Resources,
 }
 
 impl Factory {
@@ -247,7 +213,6 @@ impl Factory {
         Self {
             pos: pos.into(),
             product_type,
-            resources: Resources::default(),
         }
     }
 }
@@ -342,7 +307,6 @@ impl std::ops::IndexMut<ResourceType> for Resources {
 
 impl std::ops::AddAssign for Resources {
     fn add_assign(&mut self, rhs: Self) {
-        // TODO: simd
         for i in 0..RESOURCE_TYPES {
             self.values[i] += rhs.values[i];
         }
@@ -351,7 +315,6 @@ impl std::ops::AddAssign for Resources {
 
 impl std::ops::SubAssign for Resources {
     fn sub_assign(&mut self, rhs: Self) {
-        // TODO: simd
         for i in 0..RESOURCE_TYPES {
             self.values[i] -= rhs.values[i];
         }
@@ -362,7 +325,6 @@ impl std::ops::Div for Resources {
     type Output = Resources;
 
     fn div(self, rhs: Self) -> Resources {
-        // TODO: simd
         let mut res = Resources::default();
         for i in 0..RESOURCE_TYPES {
             res.values[i] = self.values[i]
@@ -377,7 +339,6 @@ impl std::ops::Mul for Resources {
     type Output = Resources;
 
     fn mul(self, rhs: Self) -> Resources {
-        // TODO: simd
         let mut res = Resources::default();
         for i in 0..RESOURCE_TYPES {
             res.values[i] = self.values[i] * rhs.values[i];
@@ -406,66 +367,5 @@ impl Resources {
 
     pub fn iter(&self) -> impl Iterator<Item = u16> + '_ {
         self.values.iter().copied()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SimRun {
-    pub rounds: u32,
-    pub points: u32,
-    pub at_turn: u32,
-}
-
-pub fn run(sim: &mut Sim) -> SimRun {
-    let mut points = 0;
-    let mut turn = 0;
-    let mut at_turn = 0;
-
-    while turn < sim.turns {
-        let mut unchanged = true;
-
-        // start of the round
-        for con in sim.connections.iter_mut() {
-            let building_b = &mut sim.buildings[con.input_id];
-            let res = std::mem::take(&mut con.resources);
-            unchanged &= res.is_empty();
-            building_b.input_resources(res);
-        }
-
-        for con in sim.connections.iter_mut() {
-            let building_a = &mut sim.buildings[con.output_id];
-            con.resources = building_a.output_resources();
-            unchanged &= con.resources.is_empty();
-        }
-
-        for (_, b) in sim.buildings.iter_mut() {
-            let Building::Factory(f) = b else { continue };
-            let product = &sim.products.values[f.product_type as usize];
-            if f.resources.has_at_least(&product.resources) {
-                let count = (f.resources / product.resources)
-                    .iter()
-                    .min()
-                    .unwrap_or_default();
-
-                if count > 0 {
-                    f.resources -= product.resources * Resources::new([count; 8]);
-                    points += product.points * count as u32;
-                    at_turn = turn + 1;
-                    unchanged = false;
-                }
-            }
-        }
-
-        if unchanged {
-            break;
-        }
-
-        turn += 1;
-    }
-
-    SimRun {
-        rounds: turn,
-        points,
-        at_turn,
     }
 }

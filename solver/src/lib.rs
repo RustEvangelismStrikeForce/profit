@@ -62,7 +62,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
         let mut available_resources = Resources::default();
         for id in region.deposits.iter() {
             let Building::Deposit(deposit) = &sim.buildings[*id] else { continue };
-            available_resources.values[deposit.resource_type as usize] += deposit.resources;
+            available_resources.values[deposit.resource_type as usize] += deposit.resources();
         }
 
         let product_stats = sim.products.iter()
@@ -95,7 +95,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
 
                         // TODO: possibly factor in if there are other deposits of the same resource
                         // type in the region
-                        let resources = deposit.resources;
+                        let resources = deposit.resources();
                         let weight = needed_resources as f32 * resources as f32;
 
                         Some(DepositStats { id, resource_type, resources, weight })
@@ -262,9 +262,6 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
     Ok(())
 }
 
-// TODO: consider not storing resources inside the connections and buildings directly, but creating
-// them when starting the simulation, significantly reducing the memory used to store these
-// connection trees
 struct ConnectionTree {
     node: ConnectionTreeNode,
     children: Vec<ConnectionTree>,
@@ -304,26 +301,26 @@ fn connect_deposits_and_factory(
         let deposit_height = deposit.height as i8;
 
         // place a mine somewhere around the deposit
-        for x in 0..deposit_width as i8 {
+        for x in 0..deposit_width {
             let pos = deposit_pos + (x, -1);
             if let Some(Some(dist)) = factory_distance_map.get(pos) {
                 place_mine(sim, &factory_distance_map, pos, dist);
             }
         }
-        for x in 0..deposit_width as i8 {
-            let pos = deposit_pos + (x, deposit_height as i8);
+        for x in 0..deposit_width {
+            let pos = deposit_pos + (x, deposit_height);
             if let Some(Some(dist)) = factory_distance_map.get(pos) {
                 place_mine(sim, &factory_distance_map, pos, dist);
             }
         }
-        for y in 0..deposit_height as i8 {
+        for y in 0..deposit_height {
             let pos = deposit_pos + (-1, y);
             if let Some(Some(dist)) = factory_distance_map.get(pos) {
                 place_mine(sim, &factory_distance_map, pos, dist);
             }
         }
-        for y in 0..deposit_height as i8 {
-            let pos = deposit_pos + (deposit_width as i8, y);
+        for y in 0..deposit_height {
+            let pos = deposit_pos + (deposit_width, y);
             if let Some(Some(dist)) = factory_distance_map.get(pos) {
                 place_mine(sim, &factory_distance_map, pos, dist);
             }

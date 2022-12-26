@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::{Building, Error, Resources, Sim};
+use crate::{Building, Error, Sim};
 
 pub const MAX_BOARD_SIZE: i8 = 100;
 pub const FACTORY_SIZE: i8 = 5;
@@ -637,7 +637,6 @@ pub struct Connection {
     /// Input cell - output of the connection
     pub input_id: Id,
     pub input_pos: Pos,
-    pub resources: Resources,
 }
 
 impl Connection {
@@ -647,7 +646,6 @@ impl Connection {
             output_pos,
             input_id,
             input_pos,
-            resources: Resources::default(),
         }
     }
 }
