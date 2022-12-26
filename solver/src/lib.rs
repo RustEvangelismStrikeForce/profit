@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use profit_sim as sim;
-use sim::{Building, Factory, Id, Pos, ProductType, ResourceType, Resources, Sim, FACTORY_SIZE};
+use sim::{
+    Building, Factory, Id, Mine, Pos, ProductType, ResourceType, Resources, Rotation, Sim,
+    FACTORY_SIZE, Conveyor, Combiner,
+};
 
 pub use distance::*;
 pub use region::*;
@@ -29,7 +32,12 @@ struct FactoryStats {
     score: Score,
     resources_in_reach: Resources,
     /// indices into deposit_stats
-    deposits_in_reach: Vec<usize>,
+    deposits_in_reach: Vec<DepositIdx>,
+}
+
+struct DepositIdx {
+    idx: usize,
+    dist: u16,
 }
 
 #[derive(Debug)]
@@ -111,12 +119,11 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                             }
                         }
 
-                        let mut min = WeightedDist { dist: f32::MAX, weighted: f32::MAX };
                         let mut max = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut resources_in_reach = available_resources;
                         let mut deposits_in_reach = Vec::with_capacity(region.deposits.len());
-                        for (di, ds) in deposit_stats.iter().enumerate() {
+                        for (idx, ds) in deposit_stats.iter().enumerate() {
                             let map = &deposit_distance_maps[&ds.id];
                             // find the distance from the outer border of the factory
                             let mut dist = u16::MAX;
@@ -132,24 +139,23 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                                     dist = dist.min(d);
                                 }
                             }
-                            for i in 0..FACTORY_SIZE {
+                            for i in 1..FACTORY_SIZE - 1 {
                                 let pos = pos + (0, i);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
-                            for i in 0..FACTORY_SIZE {
+                            for i in 1..FACTORY_SIZE - 1 {
                                 let pos = pos + (FACTORY_SIZE - 1, i);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
 
+                            let deposit_idx = DepositIdx { idx, dist };
                             let dist = dist as f32;
                             let weighted = 1.0 / (dist + 1.0).ln() * ds.weight;
 
-                            min.dist = min.dist.min(dist);
-                            min.weighted = min.weighted.min(weighted);
                             max.dist = max.dist.max(dist);
                             max.weighted = max.dist.max(weighted);
                             sum.dist += dist;
@@ -157,8 +163,8 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
 
                             if dist == 0.0 {
                                 return None;
-                            } else if dist as u32 / 4 < sim.turns {
-                                deposits_in_reach.push(di);
+                            } else if (dist as u32 / 4) + 2 < sim.turns {
+                                deposits_in_reach.push(deposit_idx);
                             } else {
                                 resources_in_reach[ds.resource_type] -= ds.resources;
                             }
@@ -178,7 +184,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                         let score = Score {
                             dist: 1.0 / (avg.dist + 1.0).ln() * (max.dist + 1.0).ln(),
                             weighted: avg.weighted * (max.weighted + 1.0).ln(),
-                            max_products: 1.0 / (max_products + 1.0).ln(),
+                            max_products: 1.0 / (max_products + 2.0).ln(),
                         };
 
                         Some(FactoryStats { pos, score, resources_in_reach, deposits_in_reach })
@@ -196,6 +202,11 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                     max_score.weighted = max_score.weighted.max(d.score.weighted);
                     max_score.max_products = max_score.max_products.max(d.score.max_products);
                 }
+                // increase the range by an epsilon to avoid `NaN`s when all scores are the same
+                const EPSILON: f32 = 0.001;
+                max_score.dist += EPSILON;
+                max_score.weighted += EPSILON;
+                max_score.max_products += EPSILON;
                 factory_stats.iter_mut().for_each(|d| {
                     d.score.dist = (d.score.dist - min_score.dist) / (max_score.dist - min_score.dist);
                     d.score.weighted = (d.score.weighted - min_score.weighted) / (max_score.weighted - min_score.weighted);
@@ -251,6 +262,27 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
     Ok(())
 }
 
+// TODO: consider not storing resources inside the connections and buildings directly, but creating
+// them when starting the simulation, significantly reducing the memory used to store these
+// connection trees
+struct ConnectionTree {
+    node: ConnectionTreeNode,
+    children: Vec<ConnectionTree>,
+}
+
+struct ConnectionTreeNode {
+    building: ConnectionBuilding,
+    start_pos: Pos,
+    end_pos: Pos,
+    end_dist: u16,
+}
+
+enum ConnectionBuilding {
+    Mine(Mine),
+    Conveyor(Conveyor),
+    Combiner(Combiner),
+}
+
 fn connect_deposits_and_factory(
     sim: &mut Sim,
     region: Region,
@@ -262,11 +294,87 @@ fn connect_deposits_and_factory(
     let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
     sim::place_building(sim, factory)?;
 
-    for di in factory_stats.deposits_in_reach.iter().copied() {
-        let deposit = &product_stats.deposit_stats[di];
-        let distance_map = &deposit_distance_maps[&deposit.id];
-        // TODO: try to connect all the things
+    let factory_distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
+
+    for d in factory_stats.deposits_in_reach.iter() {
+        let stats = &product_stats.deposit_stats[d.idx];
+        let Building::Deposit(deposit) = &sim.buildings[stats.id] else { unreachable!("This should be a deposit") };
+        let deposit_pos = deposit.pos;
+        let deposit_width = deposit.width as i8;
+        let deposit_height = deposit.height as i8;
+
+        // place a mine somewhere around the deposit
+        for x in 0..deposit_width as i8 {
+            let pos = deposit_pos + (x, -1);
+            if let Some(Some(dist)) = factory_distance_map.get(pos) {
+                place_mine(sim, &factory_distance_map, pos, dist);
+            }
+        }
+        for x in 0..deposit_width as i8 {
+            let pos = deposit_pos + (x, deposit_height as i8);
+            if let Some(Some(dist)) = factory_distance_map.get(pos) {
+                place_mine(sim, &factory_distance_map, pos, dist);
+            }
+        }
+        for y in 0..deposit_height as i8 {
+            let pos = deposit_pos + (-1, y);
+            if let Some(Some(dist)) = factory_distance_map.get(pos) {
+                place_mine(sim, &factory_distance_map, pos, dist);
+            }
+        }
+        for y in 0..deposit_height as i8 {
+            let pos = deposit_pos + (deposit_width as i8, y);
+            if let Some(Some(dist)) = factory_distance_map.get(pos) {
+                place_mine(sim, &factory_distance_map, pos, dist);
+            }
+        }
     }
 
     Ok(())
+}
+
+fn place_mine(
+    sim: &mut Sim,
+    factory_distance_map: &DistanceMap,
+    start_pos: Pos,
+    start_dist: u16,
+) -> Option<(Pos, u16)> {
+    let up = || -> Option<(Pos, u16)> {
+        let end_pos = start_pos + (3, 0);
+        let dist = factory_distance_map.get(end_pos)??;
+        let mine = Building::Mine(Mine::new(start_pos + (1, -1), Rotation::Up));
+        sim::place_building(sim, mine).ok()?;
+        Some((end_pos, dist))
+    }();
+    let right = || -> Option<(Pos, u16)> {
+        let end_pos = start_pos + (0, 3);
+        let dist = factory_distance_map.get(end_pos)??;
+        let mine = Building::Mine(Mine::new(start_pos + (0, 1), Rotation::Right));
+        let mine_id = sim::place_building(sim, mine).ok()?;
+        let mine = sim::remove_building(sim, mine_id);
+        Some((end_pos, dist))
+    }();
+    let down = || -> Option<(Pos, u16)> {
+        let end_pos = start_pos + (-3, 0);
+        let dist = factory_distance_map.get(end_pos)??;
+        let mine = Building::Mine(Mine::new(start_pos + (-2, 0), Rotation::Down));
+        let mine_id = sim::place_building(sim, mine).ok()?;
+        sim::remove_building(sim, mine_id);
+        Some((end_pos, dist))
+    }();
+    let left = || -> Option<(Pos, u16)> {
+        let end_pos = start_pos + (0, -3);
+        let dist = factory_distance_map.get(end_pos)??;
+        let mine = Building::Mine(Mine::new(start_pos + (-1, -2), Rotation::Left));
+        let mine_id = sim::place_building(sim, mine).ok()?;
+        sim::remove_building(sim, mine_id);
+        Some((end_pos, dist))
+    }();
+
+    up.or(right).or(down).or(left)
+}
+
+// place conveyors or combiners
+fn place_connector(sim: &mut Sim, factory_distance_map: &DistanceMap, start_pos: Pos, start_dist: u16) {
+    todo!()
 }

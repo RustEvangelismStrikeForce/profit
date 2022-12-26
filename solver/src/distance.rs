@@ -93,30 +93,30 @@ pub fn map_deposit_distances(sim: &Sim) -> HashMap<Id, DistanceMap> {
         .iter()
         .filter_map(|(i, b)| {
             let Building::Deposit(deposit) = b else { return None };
-            let map = map_distances(sim, deposit.pos, deposit.width, deposit.height);
+            let map = map_distances(sim, deposit.pos, deposit.width as i8, deposit.height as i8);
             Some((i, map))
         })
         .collect()
 }
 
 /// Generate a map of Manhattan distances to a rectangular object
-pub fn map_distances(sim: &Sim, pos: Pos, width: u8, height: u8) -> DistanceMap {
+pub fn map_distances(sim: &Sim, pos: Pos, width: i8, height: i8) -> DistanceMap {
     let mut map = DistanceMap::new(sim.board.width, sim.board.height);
 
-    for i in 0..width as i8 {
+    for i in 0..width {
         let pos = pos + (i, -1);
         map_distance(sim, &mut map, pos, 0);
     }
-    for i in 0..width as i8 {
-        let pos = pos + (i, height as i8);
+    for i in 0..width {
+        let pos = pos + (i, height);
         map_distance(sim, &mut map, pos, 0);
     }
-    for i in 0..height as i8 {
+    for i in 0..height {
         let pos = pos + (-1, i);
         map_distance(sim, &mut map, pos, 0);
     }
-    for i in 0..height as i8 {
-        let pos = pos + (height as i8, i);
+    for i in 0..height {
+        let pos = pos + (height, i);
         map_distance(sim, &mut map, pos, 0);
     }
 

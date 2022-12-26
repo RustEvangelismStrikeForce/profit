@@ -662,65 +662,66 @@ pub fn remove_building(sim: &mut Sim, id: Id) -> Building {
     for y in 0..sim.board.height {
         for x in 0..sim.board.width {
             let pos = pos(x, y);
-            if let Some(c) = sim.board[pos] {
-                if c.id == id {
-                    sim.board[pos] = None;
+            let Some(c) = sim.board[pos] else { continue };
+            if c.id != id {
+                continue;
+            }
 
-                    // check for conveyor intersections
-                    if is_conveyor && c.kind == CellKind::Inert {
-                        if is_vertical {
-                            let Some(left) =  sim.board.get(pos + (-1, 0)).flatten() else { continue };
-                            let Some(right) =  sim.board.get(pos + (1, 0)).flatten() else { continue };
+            sim.board[pos] = None;
 
-                            let mut intersecting_id = left.id;
-                            if left.id != right.id {
-                                let mut matches = false;
-                                if let Some(two_left) = sim.board.get(pos + (-2, 0)).flatten() {
-                                    if two_left.id == right.id {
-                                        intersecting_id = right.id;
-                                        matches = true;
-                                    }
-                                }
-                                if let Some(two_right) = sim.board.get(pos + (2, 0)).flatten() {
-                                    if two_right.id == left.id {
-                                        intersecting_id = left.id;
-                                        matches = true;
-                                    }
-                                }
-                                if !matches {
-                                    continue;
-                                }
-                            }
+            if !is_conveyor || c.kind != CellKind::Inert {
+                continue;
+            }
 
-                            sim.board[pos] = Some(Cell::inert(intersecting_id));
-                        } else {
-                            let Some(up) =  sim.board.get(pos + (0, -1)).flatten() else { continue };
-                            let Some(down) =  sim.board.get(pos + (0, 1)).flatten() else { continue };
+            // check for conveyor intersections
+            if is_vertical {
+                let Some(left) =  sim.board.get(pos + (-1, 0)).flatten() else { continue };
+                let Some(right) =  sim.board.get(pos + (1, 0)).flatten() else { continue };
 
-                            let mut intersecting_id = up.id;
-                            if up.id != down.id {
-                                let mut matches = false;
-                                if let Some(two_up) = sim.board.get(pos + (0, -2)).flatten() {
-                                    if two_up.id == down.id {
-                                        intersecting_id = down.id;
-                                        matches = true;
-                                    }
-                                }
-                                if let Some(two_down) = sim.board.get(pos + (0, 2)).flatten() {
-                                    if two_down.id == up.id {
-                                        intersecting_id = up.id;
-                                        matches = true;
-                                    }
-                                }
-                                if !matches {
-                                    continue;
-                                }
-                            }
-
-                            sim.board[pos] = Some(Cell::inert(intersecting_id));
+                let mut intersecting_id = left.id;
+                if left.id != right.id {
+                    let mut matches = false;
+                    if let Some(two_left) = sim.board.get(pos + (-2, 0)).flatten() {
+                        if two_left.id == right.id {
+                            intersecting_id = right.id;
+                            matches = true;
+                        }
+                    } else if let Some(two_right) = sim.board.get(pos + (2, 0)).flatten() {
+                        if two_right.id == left.id {
+                            intersecting_id = left.id;
+                            matches = true;
                         }
                     }
+                    if !matches {
+                        continue;
+                    }
                 }
+
+                sim.board[pos] = Some(Cell::inert(intersecting_id));
+            } else {
+                let Some(up) =  sim.board.get(pos + (0, -1)).flatten() else { continue };
+                let Some(down) =  sim.board.get(pos + (0, 1)).flatten() else { continue };
+
+                let mut intersecting_id = up.id;
+                if up.id != down.id {
+                    let mut matches = false;
+                    if let Some(two_up) = sim.board.get(pos + (0, -2)).flatten() {
+                        if two_up.id == down.id {
+                            intersecting_id = down.id;
+                            matches = true;
+                        }
+                    } else if let Some(two_down) = sim.board.get(pos + (0, 2)).flatten() {
+                        if two_down.id == up.id {
+                            intersecting_id = up.id;
+                            matches = true;
+                        }
+                    }
+                    if !matches {
+                        continue;
+                    }
+                }
+
+                sim.board[pos] = Some(Cell::inert(intersecting_id));
             }
         }
     }
