@@ -102,19 +102,6 @@ pub enum Building {
     Factory(Factory),
 }
 
-impl Building {
-    pub fn pos(&self) -> Pos {
-        match self {
-            Building::Deposit(d) => d.pos,
-            Building::Obstacle(o) => o.pos,
-            Building::Mine(m) => m.pos,
-            Building::Conveyor(c) => c.pos,
-            Building::Combiner(c) => c.pos,
-            Building::Factory(f) => f.pos,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Deposit {
     pub pos: Pos,
@@ -155,7 +142,7 @@ impl Obstacle {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Mine {
     pub pos: Pos,
     pub rotation: Rotation,

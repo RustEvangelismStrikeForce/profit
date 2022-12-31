@@ -417,7 +417,8 @@ fn serialize_solution() {
 
 #[test]
 fn run_task_002_solution_001() {
-    let run_task_002_solution_002 = std::fs::read_to_string("../tasks/002/solution_001.json").unwrap();
+    let run_task_002_solution_002 =
+        std::fs::read_to_string("../tasks/002/solution_001.json").unwrap();
     let task: dto::Task = serde_json::from_str(&run_task_002_solution_002).unwrap();
     let mut sim = Sim::try_from(&task).unwrap();
     let run = run(&sim);

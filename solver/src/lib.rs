@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use profit_sim as sim;
 use sim::{
-    Building, Factory, Id, Mine, Pos, ProductType, ResourceType, Resources, Rotation, Sim,
-    FACTORY_SIZE, Conveyor, Combiner,
+    Building, Combiner, Conveyor, Factory, Id, Mine, Pos, ProductType, ResourceType, Resources,
+    Rotation, Sim, FACTORY_SIZE,
 };
 
 pub use distance::*;
@@ -230,6 +230,8 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
         println!("{:?}", region.deposits);
         println!("------------------------------");
 
+        // TODO: calculate search depth dynamically based on some heuristic using time and board size
+        let search_depth = 5;
         let mut current_sim = sim.clone();
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations
@@ -247,10 +249,9 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
 
                 let res = connect_deposits_and_factory(
                     &mut current_sim,
-                    region,
-                    &deposit_distance_maps,
                     product_stats,
                     factory_stats,
+                    search_depth,
                 );
                 if let Err(e) = res {
                     println!("{e}");
@@ -263,35 +264,113 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
 }
 
 struct ConnectionTree {
-    node: ConnectionTreeNode,
-    children: Vec<ConnectionTree>,
+    nodes: Vec<ConnectionTreeNode>,
 }
 
+impl std::ops::Index<NodeId> for ConnectionTree {
+    type Output = ConnectionTreeNode;
+
+    fn index(&self, index: NodeId) -> &Self::Output {
+        &self.nodes[index.0 as usize]
+    }
+}
+
+impl std::ops::IndexMut<NodeId> for ConnectionTree {
+    fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
+        &mut self.nodes[index.0 as usize]
+    }
+}
+
+impl ConnectionTree {
+    pub fn new() -> Self {
+        Self { nodes: Vec::new() }
+    }
+
+    /// reserves size slots, and returns the starting index
+    pub fn alloc(&mut self, size: u16) -> NodeId {
+        let len = self.nodes.len();
+        let new_len = len + size as usize;
+        self.nodes.resize_with(new_len, ConnectionTreeNode::uninit);
+        NodeId(len as u32)
+    }
+
+    pub fn add_child(&mut self, node_id: NodeId, len: &mut u16, node: ConnectionTreeNode) {
+        let idx = node_id + *len;
+        self[idx] = node;
+        *len += 1;
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct NodeId(u32);
+
+impl std::ops::Add<u16> for NodeId {
+    type Output = NodeId;
+
+    fn add(self, rhs: u16) -> Self::Output {
+        NodeId(self.0 + rhs as u32)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 struct ConnectionTreeNode {
     building: ConnectionBuilding,
-    start_pos: Pos,
-    end_pos: Pos,
     end_dist: u16,
+    state: State,
 }
 
+impl ConnectionTreeNode {
+    fn new(building: ConnectionBuilding, end_dist: u16, state: State) -> Self {
+        Self {
+            building,
+            end_dist,
+            state,
+        }
+    }
+
+    fn uninit() -> Self {
+        Self {
+            building: ConnectionBuilding::Mine(Mine::new((i8::MIN, i8::MIN), Rotation::Up)),
+            end_dist: 0,
+            state: State::Stopped,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 enum ConnectionBuilding {
     Mine(Mine),
     Conveyor(Conveyor),
     Combiner(Combiner),
 }
 
+#[derive(Clone, PartialEq, Eq)]
+enum State {
+    /// Search depth was exceeded, this path might be continued further
+    Stopped,
+    /// Connected to the factory
+    Factory,
+    /// A list of children
+    Children {
+        /// Start index into the connection tree nodes
+        start: NodeId,
+        /// Length of the children array
+        len: u16,
+    },
+}
+
 fn connect_deposits_and_factory(
     sim: &mut Sim,
-    region: Region,
-    deposit_distance_maps: &HashMap<Id, DistanceMap>,
     product_stats: &ProductStats,
     factory_stats: &FactoryStats,
+    search_depth: u8,
 ) -> sim::Result<()> {
     let product_type = product_stats.product_type;
     let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
     sim::place_building(sim, factory)?;
 
     let factory_distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
+    let mut tree = ConnectionTree::new();
 
     for d in factory_stats.deposits_in_reach.iter() {
         let stats = &product_stats.deposit_stats[d.idx];
@@ -300,29 +379,72 @@ fn connect_deposits_and_factory(
         let deposit_width = deposit.width as i8;
         let deposit_height = deposit.height as i8;
 
+        const MINE_CORNER_POSITIONS: u16 = 4;
+        const MINE_CORNER_ROTATIONS: u16 = 3;
+        const MINE_CORNER_CONFIGURATIONS: u16 = MINE_CORNER_POSITIONS * MINE_CORNER_ROTATIONS;
+        const MINE_EDGE_ROTATIONS: u16 = 2;
+        let mine_edge_positions =
+            2 * deposit.width.saturating_sub(1) + 2 * deposit.height.saturating_sub(1);
+        let max_children_len =
+            MINE_CORNER_CONFIGURATIONS + mine_edge_positions as u16 * MINE_EDGE_ROTATIONS;
+        let children_id = tree.alloc(max_children_len);
+        let mut children_len = 0;
+
         // place a mine somewhere around the deposit
         for x in 0..deposit_width {
             let pos = deposit_pos + (x, -1);
-            if let Some(Some(dist)) = factory_distance_map.get(pos) {
-                place_mine(sim, &factory_distance_map, pos, dist);
+            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+                place_mine(
+                    sim,
+                    &mut tree,
+                    &factory_distance_map,
+                    pos,
+                    children_id,
+                    &mut children_len,
+                    search_depth,
+                );
             }
         }
         for x in 0..deposit_width {
             let pos = deposit_pos + (x, deposit_height);
-            if let Some(Some(dist)) = factory_distance_map.get(pos) {
-                place_mine(sim, &factory_distance_map, pos, dist);
+            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+                place_mine(
+                    sim,
+                    &mut tree,
+                    &factory_distance_map,
+                    pos,
+                    children_id,
+                    &mut children_len,
+                    search_depth,
+                );
             }
         }
         for y in 0..deposit_height {
             let pos = deposit_pos + (-1, y);
-            if let Some(Some(dist)) = factory_distance_map.get(pos) {
-                place_mine(sim, &factory_distance_map, pos, dist);
+            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+                place_mine(
+                    sim,
+                    &mut tree,
+                    &factory_distance_map,
+                    pos,
+                    children_id,
+                    &mut children_len,
+                    search_depth,
+                );
             }
         }
         for y in 0..deposit_height {
             let pos = deposit_pos + (deposit_width, y);
-            if let Some(Some(dist)) = factory_distance_map.get(pos) {
-                place_mine(sim, &factory_distance_map, pos, dist);
+            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+                place_mine(
+                    sim,
+                    &mut tree,
+                    &factory_distance_map,
+                    pos,
+                    children_id,
+                    &mut children_len,
+                    search_depth,
+                );
             }
         }
     }
@@ -332,46 +454,82 @@ fn connect_deposits_and_factory(
 
 fn place_mine(
     sim: &mut Sim,
-    factory_distance_map: &DistanceMap,
+    tree: &mut ConnectionTree,
+    distance_map: &DistanceMap,
     start_pos: Pos,
-    start_dist: u16,
-) -> Option<(Pos, u16)> {
-    let up = || -> Option<(Pos, u16)> {
-        let end_pos = start_pos + (3, 0);
-        let dist = factory_distance_map.get(end_pos)??;
-        let mine = Building::Mine(Mine::new(start_pos + (1, -1), Rotation::Up));
-        sim::place_building(sim, mine).ok()?;
-        Some((end_pos, dist))
-    }();
-    let right = || -> Option<(Pos, u16)> {
-        let end_pos = start_pos + (0, 3);
-        let dist = factory_distance_map.get(end_pos)??;
-        let mine = Building::Mine(Mine::new(start_pos + (0, 1), Rotation::Right));
-        let mine_id = sim::place_building(sim, mine).ok()?;
-        let mine = sim::remove_building(sim, mine_id);
-        Some((end_pos, dist))
-    }();
-    let down = || -> Option<(Pos, u16)> {
-        let end_pos = start_pos + (-3, 0);
-        let dist = factory_distance_map.get(end_pos)??;
-        let mine = Building::Mine(Mine::new(start_pos + (-2, 0), Rotation::Down));
-        let mine_id = sim::place_building(sim, mine).ok()?;
-        sim::remove_building(sim, mine_id);
-        Some((end_pos, dist))
-    }();
-    let left = || -> Option<(Pos, u16)> {
-        let end_pos = start_pos + (0, -3);
-        let dist = factory_distance_map.get(end_pos)??;
-        let mine = Building::Mine(Mine::new(start_pos + (-1, -2), Rotation::Left));
-        let mine_id = sim::place_building(sim, mine).ok()?;
-        sim::remove_building(sim, mine_id);
-        Some((end_pos, dist))
-    }();
+    node_id: NodeId,
+    len: &mut u16,
+    search_depth: u8,
+) {
+    const DOCKING_POSITIONS: u16 = 3;
+    const CONVEYOR_CONFIGURATIONS: u16 = 6;
+    const COMBINER_CONFIGURATIONS: u16 = 0;
+    const MAX_CHILDREN_SIZE: u16 =
+        DOCKING_POSITIONS * (CONVEYOR_CONFIGURATIONS + COMBINER_CONFIGURATIONS);
 
-    up.or(right).or(down).or(left)
+    'block: {
+        let end_pos = start_pos + (3, 0);
+        let Some(end_dist) = distance_map.get(end_pos).flatten() else { break 'block };
+        let mine = Mine::new(start_pos + (1, -1), Rotation::Up);
+        let Some(mine_id) = sim::place_building(sim, Building::Mine(mine.clone())).ok() else { break 'block };
+
+        let children_id = tree.alloc(MAX_CHILDREN_SIZE);
+        let state =
+            place_connector_around(sim, distance_map, end_pos, children_id, search_depth - 1);
+
+        sim::remove_building(sim, mine_id);
+
+        let building = ConnectionBuilding::Mine(mine);
+        let node = ConnectionTreeNode::new(building, end_dist, state);
+        tree.add_child(node_id, len, node);
+    }
+    'block: {
+        let end_pos = start_pos + (0, 3);
+        let Some(_dist) = distance_map.get(end_pos).flatten() else { break 'block };
+        let mine = Mine::new(start_pos + (0, 1), Rotation::Right);
+        todo!()
+    }
+    'block: {
+        let end_pos = start_pos + (-3, 0);
+        let Some(_dist) = distance_map.get(end_pos).flatten() else { break 'block };
+        let mine = Mine::new(start_pos + (-2, 0), Rotation::Down);
+        todo!()
+    }
+    'block: {
+        let end_pos = start_pos + (0, -3);
+        let Some(_dist) = distance_map.get(end_pos).flatten() else { break 'block };
+        let mine = Mine::new(start_pos + (-1, -2), Rotation::Left);
+        todo!()
+    }
+}
+
+fn place_connector_around(
+    sim: &mut Sim,
+    distance_map: &DistanceMap,
+    start_pos: Pos,
+    node_id: NodeId,
+    search_depth: u8,
+) -> State {
+    if search_depth == 0 {
+        return State::Stopped;
+    }
+
+    let mut len = 0;
+
+    // TODO: place connectors around, the last connectors end
+
+    State::Children {
+        start: node_id,
+        len,
+    }
 }
 
 // place conveyors or combiners
-fn place_connector(sim: &mut Sim, factory_distance_map: &DistanceMap, start_pos: Pos, start_dist: u16) {
-    todo!()
+fn place_connector(
+    sim: &mut Sim,
+    factory_distance_map: &DistanceMap,
+    start_pos: Pos,
+    search_depth: u8,
+) -> Option<()> {
+    todo!("")
 }
