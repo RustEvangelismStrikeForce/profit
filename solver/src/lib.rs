@@ -228,7 +228,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
         println!("------------------------------");
 
         // TODO: calculate search depth dynamically based on some heuristic using time and board size
-        let search_depth = 2;
+        let search_depth = 3;
         let mut current_sim = sim.clone();
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations

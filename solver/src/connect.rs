@@ -200,8 +200,8 @@ fn place_mine(
     let mine = Mine::new(start_pos + pos_offset, rotation);
     let Some(building_id) = sim::place_building(sim, Building::Mine(mine.clone())).ok() else { return };
 
-    println!("mine {start_pos} {rotation:?}");
-    println!("{:?}", sim.board);
+    let indent = (6 - 2 * search_depth) as usize;
+    println!("{:indent$}mine {start_pos} {rotation:?} {:?}", "", sim.board);
 
     let state =
         place_connector_around(sim, tree, distance_map, end_pos, end_dist, search_depth - 1);
@@ -221,13 +221,15 @@ fn place_connector_around(
     start_dist: u16,
     search_depth: u8,
 ) -> State {
-    println!("------------------------------");
     if start_dist == 0 {
         return State::Connected;
     }
     if search_depth == 0 {
         return State::Stopped;
     }
+
+    let indent = (6 - 2 * search_depth) as usize;
+    println!("{:indent$}------------------------------", "");
 
     const DOCKING_POSITIONS: u16 = 3;
     const SMALL_CONVEYOR_CONFIGURATIONS: u16 = 3;
@@ -271,26 +273,26 @@ fn place_connectors(
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Right, (0,  1), (0,  2),  false);
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Down,  (-1, 0), (-2, 0), false);
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Left,  (0, -1), (0, -2), false);
-    
+
     // big conveyors
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Up,    (1,  0), (3,  0), true);
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Right, (0,  1), (0,  3), true);
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Down,  (-2, 0), (-3, 0), true);
     place_conveyor(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Left,  (0, -2), (0, -3), true);
-    
+
     // combiners
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Up, (1,  1), (2,  1));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Up, (1,  0), (2,  0));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Up, (1, -1), (2, -1));
-    
+
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Right, (1,  1), (1,  2));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Right, (0,  1), (0,  2));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Right, (-1, 1), (-1, 2));
-    
+
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Down, (-1,  1), (-2,  1));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Down, (-1,  0), (-2,  0));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Down, (-1, -1), (-2, -1));
-    
+
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Left, (1,  -1), (1,  -2));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Left, (0,  -1), (0,  -2));
     place_combiner(sim, tree, distance_map, start_pos, node_id, len, search_depth, Rotation::Left, (-1, -1), (-1, -2));
@@ -314,7 +316,8 @@ fn place_conveyor(
     let conveyor = Conveyor::new(start_pos + pos_offset, rotation, big);
     let Some(building_id) = sim::place_building(sim, Building::Conveyor(conveyor.clone())).ok() else { return };
 
-    println!("conveyor {start_pos} {rotation:?} {big}");
+    let indent = (6 - 2 * search_depth) as usize;
+    println!("{:indent$}conveyor {start_pos} {rotation:?} {big} {:?}", "", sim.board);
 
     let state =
         place_connector_around(sim, tree, distance_map, end_pos, end_dist, search_depth - 1);
@@ -343,8 +346,8 @@ fn place_combiner(
     let combiner = Combiner::new(start_pos + pos_offset, rotation);
     let Some(building_id) = sim::place_building(sim, Building::Combiner(combiner.clone())).ok() else { return };
 
-    println!("combiner {start_pos} {rotation:?}");
-    println!("{:?}", sim.board);
+    let indent = (6 - 2 * search_depth) as usize;
+    println!("{:indent$}combiner {start_pos} {rotation:?} {:?}", "", sim.board);
 
     let state =
         place_connector_around(sim, tree, distance_map, end_pos, end_dist, search_depth - 1);

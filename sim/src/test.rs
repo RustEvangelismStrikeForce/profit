@@ -79,6 +79,24 @@ fn place_mine_rotated_left() {
 }
 
 #[test]
+fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor() {
+    let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
+
+    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Up, false));
+    place_building(&mut sim, building).unwrap();
+
+    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Down, true));
+    place_building(&mut sim, building).unwrap_err();
+
+    let id = Id(0);
+    let mut expected = Board::new(10, 10);
+    expected[pos(3, 4)] = Some(Cell::input(id));
+    expected[pos(4, 4)] = Some(Cell::inert(id));
+    expected[pos(5, 4)] = Some(Cell::output(id));
+    assert_eq!(sim.board, expected);
+}
+
+#[test]
 fn deposit_mine_factory() {
     let mut products = Products::default();
     products[ProductType::Type0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
