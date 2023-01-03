@@ -4,7 +4,9 @@ use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, FACTORY_
 use connect::*;
 pub use distance::*;
 pub use region::*;
+pub use error::*;
 
+mod error;
 mod connect;
 mod distance;
 mod region;
@@ -130,20 +132,18 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
                                     dist = dist.min(d);
                                 }
                             }
-                            for i in 0..FACTORY_SIZE {
-                                let pos = pos + (i, FACTORY_SIZE - 1);
-                                if let Some(Some(d)) = map.get(pos) {
-                                    dist = dist.min(d);
-                                }
-                            }
                             for i in 1..FACTORY_SIZE - 1 {
                                 let pos = pos + (0, i);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
-                            }
-                            for i in 1..FACTORY_SIZE - 1 {
                                 let pos = pos + (FACTORY_SIZE - 1, i);
+                                if let Some(Some(d)) = map.get(pos) {
+                                    dist = dist.min(d);
+                                }
+                            }
+                            for i in 0..FACTORY_SIZE {
+                                let pos = pos + (i, FACTORY_SIZE - 1);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
@@ -228,7 +228,7 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
         println!("------------------------------");
 
         // TODO: calculate search depth dynamically based on some heuristic using time and board size
-        let search_depth = 3;
+        let search_depth = 5;
         let mut current_sim = sim.clone();
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations
