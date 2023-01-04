@@ -79,7 +79,7 @@ fn place_mine_rotated_left() {
 }
 
 #[test]
-fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor() {
+fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_1() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
     let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Up, false));
@@ -93,6 +93,23 @@ fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor() {
     expected[pos(3, 4)] = Some(Cell::input(id));
     expected[pos(4, 4)] = Some(Cell::inert(id));
     expected[pos(5, 4)] = Some(Cell::output(id));
+    assert_eq!(sim.board, expected);
+}
+
+#[test]
+fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_2() {
+    let mut sim = Sim::new(Products::default(), Board::new(20, 20), TURNS, TIME);
+
+    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Left, false));
+    place_building(&mut sim, building).unwrap();
+    let building = Building::Conveyor(Conveyor::new((14, 15), Rotation::Right, false));
+    place_building(&mut sim, building).unwrap();
+
+    let expected = sim.board.clone();
+
+    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Down, false));
+    place_building(&mut sim, building).unwrap_err();
+
     assert_eq!(sim.board, expected);
 }
 

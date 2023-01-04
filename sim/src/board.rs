@@ -989,7 +989,10 @@ fn place_cell(sim: &mut Sim, pos: impl Into<Pos>, cell: Cell) -> crate::Result<(
     if let Some(other) = other {
         match (&sim.buildings[other.id], &sim.buildings[cell.id]) {
             (Building::Conveyor(_), Building::Conveyor(_))
-                if cell.kind == CellKind::Inert && other.kind == CellKind::Inert => {}
+                if cell.kind == CellKind::Inert && other.kind == CellKind::Inert =>
+            {
+                return Ok(())
+            }
             _ => return Err(Error::Interseciton(pos)),
         }
     }
