@@ -423,16 +423,16 @@ impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\n\x1B[7;94m    \x1B[0m")?;
         for x in 0..self.width {
-            write!(f, "\x1B[7;94m{x:3}\x1B[0m")?;
+            write!(f, "\x1B[7;94m{x:2} \x1B[0m")?;
         }
         for y in 0..self.height {
-            write!(f, "\n\x1B[1;7;94m{y:3}\x1B[0m ")?;
+            write!(f, "\n\x1B[1;7;94m{y:3} \x1B[0m")?;
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {
-                        CellKind::Input => write!(f, "  i")?,
-                        CellKind::Output => write!(f, "  o")?,
-                        CellKind::Inert => write!(f, "  x")?,
+                        CellKind::Input => write!(f, "\x1B[1;7;92m{:2} \x1B[0m", c.id.0)?,
+                        CellKind::Output => write!(f, "\x1B[1;7;91m{:2} \x1B[0m", c.id.0)?,
+                        CellKind::Inert => write!(f, "\x1B[1;7;33m{:2} \x1B[0m", c.id.0)?,
                     },
                     None => write!(f, "  .",)?,
                 }
