@@ -3,12 +3,12 @@ use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, FACTORY_
 
 use connect::*;
 pub use distance::*;
-pub use region::*;
 pub use error::*;
+pub use region::*;
 
-mod error;
 mod connect;
 mod distance;
+mod error;
 mod region;
 #[cfg(test)]
 mod test;

@@ -148,7 +148,13 @@ pub(crate) fn connect_deposits_and_factory(
     let mut tree = ConnectionTree::new();
 
     // FIX
-    for d in factory_stats.deposits_in_reach.iter().cycle().skip(0).take(12) {
+    for d in factory_stats
+        .deposits_in_reach
+        .iter()
+        .cycle()
+        .skip(0)
+        .take(12)
+    {
         let deposit_stats = &product_stats.deposit_stats[d.idx];
         println!("Deposit {:?}", deposit_stats.id);
         let Building::Deposit(deposit) = &sim.buildings[deposit_stats.id] else { unreachable!("This should be a deposit") };
@@ -244,7 +250,6 @@ pub(crate) fn connect_deposits_and_factory(
             Err(e) => println!("{e}"),
         }
     }
-
 
     println!("{:?}", sim.board);
     let run = sim::run(sim);
