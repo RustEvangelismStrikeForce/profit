@@ -685,7 +685,8 @@ pub fn remove_building(sim: &mut Sim, id: Id) -> Building {
                             intersecting_id = right.id;
                             matches = true;
                         }
-                    } else if let Some(two_right) = sim.board.get(pos + (2, 0)).flatten() {
+                    }
+                    if let Some(two_right) = sim.board.get(pos + (2, 0)).flatten() {
                         if two_right.id == left.id {
                             intersecting_id = left.id;
                             matches = true;
@@ -709,7 +710,8 @@ pub fn remove_building(sim: &mut Sim, id: Id) -> Building {
                             intersecting_id = down.id;
                             matches = true;
                         }
-                    } else if let Some(two_down) = sim.board.get(pos + (0, 2)).flatten() {
+                    }
+                    if let Some(two_down) = sim.board.get(pos + (0, 2)).flatten() {
                         if two_down.id == up.id {
                             intersecting_id = up.id;
                             matches = true;

@@ -114,6 +114,28 @@ fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_2() {
 }
 
 #[test]
+fn place_conveyor_removes_part_of_existing_conveyor() {
+    let mut sim = Sim::new(Products::default(), Board::new(40, 40), TURNS, TIME);
+
+    let building = Building::Conveyor(Conveyor::new((22, 35), Rotation::Down, true));
+    place_building(&mut sim, building).unwrap();
+    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Down, true));
+    place_building(&mut sim, building).unwrap();
+    let building = Building::Conveyor(Conveyor::new((16, 33), Rotation::Left, true));
+    place_building(&mut sim, building).unwrap();
+    let building = Building::Conveyor(Conveyor::new((19, 35), Rotation::Left, true));
+    place_building_unchecked(&mut sim, building);
+
+    let expected = sim.board.clone();
+
+    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Right, false));
+    let id = place_building_unchecked(&mut sim, building);
+    remove_building(&mut sim, id);
+
+    assert_eq!(sim.board, expected);
+}
+
+#[test]
 fn deposit_mine_factory() {
     let mut products = Products::default();
     products[ProductType::Type0] = Product::new(Resources::new([7, 0, 0, 0, 0, 0, 0, 0]), 9);
