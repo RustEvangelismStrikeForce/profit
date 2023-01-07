@@ -234,26 +234,35 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
         // combinations
         // FIX
         for product_stats in product_stats.iter() {
-            for factory_stats in product_stats.factory_stats.iter().take(40) {
-                current_sim.clone_from(sim);
+            let mut solutions = product_stats
+                .factory_stats
+                .iter()
+                .take(100)
+                .filter_map(|factory_stats| {
+                    current_sim.clone_from(sim);
 
-                println!(
-                    "{}: {:16}, {:16}, {:16}",
-                    factory_stats.pos,
-                    factory_stats.score.dist,
-                    factory_stats.score.weighted,
-                    factory_stats.score.max_products
-                );
+                    println!(
+                        "{}: {:16}, {:16}, {:16}",
+                        factory_stats.pos,
+                        factory_stats.score.dist,
+                        factory_stats.score.weighted,
+                        factory_stats.score.max_products
+                    );
 
-                let res = connect_deposits_and_factory(
-                    &mut current_sim,
-                    product_stats,
-                    factory_stats,
-                    search_depth,
-                );
-                if let Err(e) = res {
-                    println!("{e}");
-                }
+                    connect_deposits_and_factory(
+                        &mut current_sim,
+                        product_stats,
+                        factory_stats,
+                        search_depth,
+                    )
+                    .ok()
+                })
+                .collect::<Vec<_>>();
+
+            solutions.sort_by_key(|(_, r)| r.clone());
+
+            for (s, r) in solutions {
+                println!("{:?}\n{:?}", s.board, r);
             }
         }
     }

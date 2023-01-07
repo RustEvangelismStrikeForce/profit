@@ -55,6 +55,18 @@ pub struct SimRun {
     pub at_turn: u32,
 }
 
+impl Ord for SimRun {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Ord::cmp(&self.points, &other.points).then(Ord::cmp(&other.at_turn, &self.at_turn))
+    }
+}
+
+impl PartialOrd for SimRun {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub fn run(sim: &Sim) -> SimRun {
     let mut points = 0;
     let mut turn = 0;

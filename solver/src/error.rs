@@ -9,6 +9,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     Sim(sim::Error),
     NoPath(Id, Pos, Pos),
+    /// TODO: proper error
+    NoSolution,
 }
 
 impl std::error::Error for Error {}
@@ -21,6 +23,7 @@ impl fmt::Display for Error {
                 f,
                 "No path found between deposit {d_id:?} at {d_pos} and factory at {f_pos}"
             ),
+            Error::NoSolution => write!(f, "No solution"),
         }
     }
 }

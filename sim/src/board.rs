@@ -430,11 +430,11 @@ impl fmt::Debug for Board {
             for x in 0..self.width {
                 match self[pos(x, y)] {
                     Some(c) => match c.kind {
-                        CellKind::Input => write!(f, "\x1B[1;7;92m{:2} \x1B[0m", c.id.0)?,
-                        CellKind::Output => write!(f, "\x1B[1;7;91m{:2} \x1B[0m", c.id.0)?,
-                        CellKind::Inert => write!(f, "\x1B[1;7;33m{:2} \x1B[0m", c.id.0)?,
+                        CellKind::Input => write!(f, "\x1B[1;7;92m{:^3}\x1B[0m", c.id.0)?,
+                        CellKind::Output => write!(f, "\x1B[1;7;91m{:^3}\x1B[0m", c.id.0)?,
+                        CellKind::Inert => write!(f, "\x1B[1;7;33m{:^3}\x1B[0m", c.id.0)?,
                     },
-                    None => write!(f, "  .",)?,
+                    None => write!(f, " . ",)?,
                 }
             }
         }

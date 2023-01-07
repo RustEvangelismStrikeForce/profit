@@ -1,12 +1,23 @@
 use std::cmp::Ordering;
 
 use profit_sim as sim;
-use sim::{Building, Combiner, Conveyor, Factory, Mine, Pos, Rotation, Sim, FACTORY_SIZE};
+use sim::{
+    Building, CellKind, Combiner, Conveyor, Factory, Id, Mine, Pos, Rotation, Sim, SimRun,
+    FACTORY_SIZE,
+};
+use smallvec::SmallVec;
 
 use crate::{map_distances, DistanceMap, FactoryStats, ProductStats};
 
 #[cfg(test)]
 mod test;
+
+struct Context<'a> {
+    sim: &'a mut Sim,
+    tree: ConnectionTree,
+    distance_map: DistanceMap,
+    factory_id: Id,
+}
 
 struct ConnectionTree {
     nodes: Vec<ConnectionTreeNode>,
@@ -100,6 +111,8 @@ enum State {
     Stopped,
     /// Connected to the factory
     Connected,
+    /// Connected to the factory via an already existent path
+    Merged,
     /// A list of children
     Children {
         /// Start index into the connection tree nodes
@@ -139,25 +152,30 @@ pub(crate) fn connect_deposits_and_factory(
     product_stats: &ProductStats,
     factory_stats: &FactoryStats,
     search_depth: u8,
-) -> crate::Result<()> {
+) -> crate::Result<(Sim, SimRun)> {
     let product_type = product_stats.product_type;
     let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
-    let building_id = sim::place_building(sim, factory)?;
+    let factory_id = sim::place_building(sim, factory)?;
+    let distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
+    let mut ctx = Context {
+        sim,
+        distance_map,
+        tree: ConnectionTree::new(),
+        factory_id,
+    };
 
-    let factory_distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
-    let mut tree = ConnectionTree::new();
+    let mut non_improvements = 0;
+    let mut errors = 0;
+    let mut runs = Vec::new();
+    // TODO: smarter selection order of deposits to connect
+    for (i, d) in factory_stats.deposits_in_reach.iter().cycle().enumerate() {
+        ctx.tree = ConnectionTree::new();
+        if i % factory_stats.deposits_in_reach.len() == 0 {
+            errors = 0;
+        }
 
-    // FIX
-    for d in factory_stats
-        .deposits_in_reach
-        .iter()
-        .cycle()
-        .skip(0)
-        .take(12)
-    {
         let deposit_stats = &product_stats.deposit_stats[d.idx];
-        println!("Deposit {:?}", deposit_stats.id);
-        let Building::Deposit(deposit) = &sim.buildings[deposit_stats.id] else { unreachable!("This should be a deposit") };
+        let Building::Deposit(deposit) = &ctx.sim.buildings[deposit_stats.id] else { unreachable!("This should be a deposit") };
         let deposit_pos = deposit.pos;
         let deposit_width = deposit.width as i8;
         let deposit_height = deposit.height as i8;
@@ -169,38 +187,38 @@ pub(crate) fn connect_deposits_and_factory(
             2 * deposit.width.saturating_sub(1) + 2 * deposit.height.saturating_sub(1);
         let max_children_len = MINE_CORNER_POSITIONS * MINE_CORNER_CONFIGURATIONS
             + mine_edge_positions as u16 * MINE_EDGE_CONFIGURATIONS;
-        let children_id = tree.alloc(max_children_len);
+        let children_id = ctx.tree.alloc(max_children_len);
         let mut children_len = 0;
 
         let mut best = None;
         // place a mine somewhere around the deposit
         for x in 0..deposit_width {
             let pos = deposit_pos + (x, -1);
-            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
                 #[rustfmt::skip]
-                let stats = place_mines(sim, &mut tree, &factory_distance_map, pos, children_id, &mut children_len, search_depth);
+                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
                 cmp_and_set(&mut best, stats);
             }
         }
         for y in 0..deposit_height {
             let pos = deposit_pos + (-1, y);
-            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
                 #[rustfmt::skip]
-                let stats = place_mines(sim, &mut tree, &factory_distance_map, pos, children_id, &mut children_len, search_depth);
+                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
                 cmp_and_set(&mut best, stats);
             }
             let pos = deposit_pos + (deposit_width, y);
-            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
                 #[rustfmt::skip]
-                let stats = place_mines(sim, &mut tree, &factory_distance_map, pos, children_id, &mut children_len, search_depth);
+                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
                 cmp_and_set(&mut best, stats);
             }
         }
         for x in 0..deposit_width {
             let pos = deposit_pos + (x, deposit_height);
-            if let Some(Some(_dist)) = factory_distance_map.get(pos) {
+            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
                 #[rustfmt::skip]
-                let stats = place_mines(sim, &mut tree, &factory_distance_map, pos, children_id, &mut children_len, search_depth);
+                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
                 cmp_and_set(&mut best, stats);
             }
         }
@@ -216,29 +234,30 @@ pub(crate) fn connect_deposits_and_factory(
             };
             path.push(node_id);
 
-            let node = &tree[node_id];
-            let connector_id = sim::place_building_unchecked(sim, node.building.to_building());
+            let node = &ctx.tree[node_id];
+
+            // TODO: maybe later
+            // sim::place_building_unchecked(ctx.sim, node.building.to_building());
+            let connector_id = sim::place_building(ctx.sim, node.building.to_building())
+                .expect("connector to be valid");
 
             match node.state {
-                State::Connected => break Ok(sim.clone()),
+                State::Connected | State::Merged => {
+                    break Ok(ctx.sim.clone());
+                }
                 State::Stopped => {
                     let end_pos = node.end_pos;
-                    let end_dist = factory_distance_map[node.end_pos].expect("should be valid");
+                    let end_dist = ctx.distance_map[node.end_pos].expect("should be valid");
+
                     #[rustfmt::skip]
-                    let (state, stats) = place_children_connectors(sim, &mut tree, &factory_distance_map, node_id, end_pos, end_dist, search_depth);
+                    let (state, stats) = place_children_connectors(&mut ctx, connector_id, node_id, end_pos, end_dist, search_depth);
 
-                    // TODO: decide whether we need to clean up these buildings afterwards
-                    // sim::remove_building(sim, connector_id);
-
-                    tree[node_id].state = state;
+                    ctx.tree[node_id].state = state;
                     best = stats;
                 }
                 State::Children { start, len } => {
                     #[rustfmt::skip]
-                    let stats = continue_subtree(sim, &mut tree, &factory_distance_map, start, len, search_depth);
-
-                    // TODO: decide whether we need to clean up these buildings afterwards
-                    // sim::remove_building(sim, connector_id);
+                    let stats = continue_subtree(&mut ctx, start, len, search_depth);
 
                     best = stats;
                 }
@@ -246,24 +265,38 @@ pub(crate) fn connect_deposits_and_factory(
         };
 
         match res {
-            Ok(s) => println!("we've found a solution"),
-            Err(e) => println!("{e}"),
+            Ok(sim) => {
+                // println!("ok");
+                let new = sim::run(&sim);
+                if let Some((_, last)) = runs.last() {
+                    // maybe don't break immediately
+                    if &new < last {
+                        non_improvements += 1;
+                    }
+                    if non_improvements == 12 {
+                        break;
+                    }
+                }
+                runs.push((sim, new));
+            }
+            Err(e) => {
+                errors += 1;
+                if let Some((last_sim, _)) = runs.last() {
+                    ctx.sim.clone_from(last_sim);
+                }
+                if errors == factory_stats.deposits_in_reach.len() {
+                    // println!("Error: {e}");
+                    break;
+                }
+            }
         }
     }
 
-    println!("{:?}", sim.board);
-    let run = sim::run(sim);
-    println!("{run:?}");
-
-    sim::remove_building(sim, building_id);
-
-    Ok(())
+    runs.pop().ok_or(crate::Error::NoSolution)
 }
 
 fn continue_subtree(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     children_id: ChildrenId,
     len: u16,
     search_depth: u8,
@@ -272,35 +305,42 @@ fn continue_subtree(
 
     for i in 0..len {
         let node_id = NodeId(children_id.0 + i as u32);
-        let node = &tree[node_id];
+        let node = &mut ctx.tree[node_id];
         match node.state {
             State::Connected => {
                 // TODO: consider somehow storing a list of equally good paths.
                 return Some((node_id, PathStats::new(0, search_depth)));
             }
+            State::Merged => {
+                // TODO: consider somehow storing a list of equally good paths.
+                return Some((node_id, PathStats::new(0, search_depth)));
+            }
             State::Stopped => {
                 let end_pos = node.end_pos;
-                let end_dist = distance_map[node.end_pos].expect("should be valid");
-                // TODO: decide whether we need to clean up these buildings afterwards
-                let building_id = sim::place_building_unchecked(sim, node.building.to_building());
+                let end_dist = ctx.distance_map[node.end_pos].expect("should be valid");
+
+                // TODO: maybe later
+                // let building_id = sim::place_building_unchecked(ctx.sim, node.building.to_building());
+                let building_id = sim::place_building(ctx.sim, node.building.to_building()).ok()?;
 
                 #[rustfmt::skip]
-                let (state, stats) = place_children_connectors(sim, tree, distance_map, node_id, end_pos, end_dist, search_depth - 1);
+                let (state, stats) = place_children_connectors(ctx, building_id, node_id, end_pos, end_dist, search_depth - 1);
                 cmp_and_set(&mut best, stats.map(|(_, s)| (node_id, s)));
 
-                sim::remove_building(sim, building_id);
+                sim::remove_building(ctx.sim, building_id);
 
-                tree[node_id].state = state;
+                ctx.tree[node_id].state = state;
             }
             State::Children { start, len } => {
-                // TODO: decide whether we need to clean up these buildings afterwards
-                let building_id = sim::place_building_unchecked(sim, node.building.to_building());
+                // TODO: maybe later
+                // let building_id = sim::place_building_unchecked(ctx.sim, node.building.to_building());
+                let building_id = sim::place_building(ctx.sim, node.building.to_building()).ok()?;
 
                 #[rustfmt::skip]
-                let stats = continue_subtree(sim, tree, distance_map, start, len, search_depth - 1);
+                let stats = continue_subtree(ctx, start, len, search_depth - 1);
                 cmp_and_set(&mut best, stats.map(|(_, s)| (node_id, s)));
 
-                sim::remove_building(sim, building_id);
+                sim::remove_building(ctx.sim, building_id);
             }
         }
     }
@@ -311,9 +351,7 @@ fn continue_subtree(
 #[rustfmt::skip]
 #[inline(always)]
 fn place_mines(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
@@ -321,22 +359,20 @@ fn place_mines(
 ) -> Option<(NodeId, PathStats)> {
     let mut best = None;
 
-    let stats = place_mine(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  -1), (3,  0));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  -1), (3,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (0,   1), (0,  3));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,   1), (0,  3));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down,  (-2,  0), (-3, 0));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-2,  0), (-3, 0));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, -2), (0, -3));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, -2), (0, -3));
     cmp_and_set(&mut best, stats);
 
     best
 }
 
 fn place_mine(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
@@ -346,28 +382,27 @@ fn place_mine(
     end_offset: impl Into<Pos>,
 ) -> Option<(NodeId, PathStats)> {
     let end_pos = start_pos + end_offset;
-    let end_dist = distance_map.get(end_pos)??;
+    let end_dist = ctx.distance_map.get(end_pos)??;
     let mine = Mine::new(start_pos + pos_offset, rotation);
-    let building_id = sim::place_building(sim, Building::Mine(mine.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Mine(mine.clone())).ok()?;
 
     let node_id = increment_id(children_id, len);
 
     #[rustfmt::skip]
-    let (state, stats) = place_children_connectors(sim, tree, distance_map, node_id, end_pos, end_dist, search_depth - 1);
+    let (state, stats) = place_children_connectors(ctx, building_id, node_id, end_pos, end_dist, search_depth - 1);
 
-    sim::remove_building(sim, building_id);
+    sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Mine(mine);
     let node = ConnectionTreeNode::new(building, end_pos, state);
-    tree[node_id] = node;
+    ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
 }
 
 fn place_children_connectors(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
+    connector_id: Id,
     parent_id: NodeId,
     start_pos: Pos,
     start_dist: u16,
@@ -379,6 +414,21 @@ fn place_children_connectors(
             Some((parent_id, PathStats::new(0, search_depth))),
         );
     }
+
+    // check if we're already connected to another path leading to the factory
+    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (-1, 0), search_depth) {
+        return s;
+    }
+    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (1, 0), search_depth) {
+        return s;
+    }
+    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (0, -1), search_depth) {
+        return s;
+    }
+    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (0, 1), search_depth) {
+        return s;
+    }
+
     if search_depth == 0 {
         return (
             State::Stopped,
@@ -393,25 +443,25 @@ fn place_children_connectors(
     const MAX_CHILDREN_LEN: u16 = DOCKING_POSITIONS
         * (SMALL_CONVEYOR_CONFIGURATIONS + BIG_CONVEYOR_CONFIGURATIONS + COMBINER_CONFIGURATIONS);
 
-    let children_id = tree.alloc(MAX_CHILDREN_LEN);
+    let children_id = ctx.tree.alloc(MAX_CHILDREN_LEN);
     let mut len = 0;
 
     let mut best = None;
 
     #[rustfmt::skip]
-    let stats = place_connectors(sim, tree, distance_map, start_pos + (-1, 0), children_id, &mut len, search_depth);
+    let stats = place_connectors(ctx, start_pos + (-1, 0), children_id, &mut len, search_depth);
     cmp_and_set(&mut best, stats);
 
     #[rustfmt::skip]
-    let stats = place_connectors(sim, tree, distance_map, start_pos + (1, 0), children_id, &mut len, search_depth);
+    let stats = place_connectors(ctx, start_pos + (1, 0), children_id, &mut len, search_depth);
     cmp_and_set(&mut best, stats);
 
     #[rustfmt::skip]
-    let stats = place_connectors(sim, tree, distance_map, start_pos + (0, 1), children_id, &mut len, search_depth);
+    let stats = place_connectors(ctx, start_pos + (0, 1), children_id, &mut len, search_depth);
     cmp_and_set(&mut best, stats);
 
     #[rustfmt::skip]
-    let stats = place_connectors(sim, tree, distance_map, start_pos + (0, -1), children_id, &mut len, search_depth);
+    let stats = place_connectors(ctx, start_pos + (0, -1), children_id, &mut len, search_depth);
     cmp_and_set(&mut best, stats);
 
     let state = State::Children {
@@ -422,13 +472,64 @@ fn place_children_connectors(
     (state, best)
 }
 
+#[inline(always)]
+fn find_connection_at(
+    ctx: &mut Context,
+    parent_id: NodeId,
+    connector_id: Id,
+    pos: Pos,
+    search_depth: u8,
+) -> Option<(State, Option<(NodeId, PathStats)>)> {
+    if let Some(Some(cell)) = ctx.sim.board.get(pos) {
+        if cell.id != connector_id && cell.kind == CellKind::Input {
+            if let Some(path_len) = find_connection(ctx, cell.id) {
+                // HACK: rather than calculating some approximate dist consider adding another
+                // value to PathStats
+                let dist = path_len * 3 + 2;
+                return Some((
+                    State::Merged,
+                    Some((parent_id, PathStats::new(dist, search_depth))),
+                ));
+            }
+        }
+    }
+
+    None
+}
+
+#[inline(always)]
+fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
+    let mut path = SmallVec::<[_; 15]>::new();
+
+    'path: loop {
+        for conn in ctx.sim.connections.iter() {
+            if conn.output_id == current_id {
+                if path.contains(&conn.output_id) {
+                    // we're in a loop
+                    return None;
+                }
+
+                current_id = conn.input_id;
+
+                if current_id == ctx.factory_id {
+                    return Some(path.len() as u16);
+                }
+                path.push(current_id);
+
+                continue 'path;
+            }
+        }
+
+        // the path ends here
+        return None;
+    }
+}
+
 /// Place conveyors or combiners
 #[rustfmt::skip]
 #[inline(always)]
 fn place_connectors(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
@@ -437,61 +538,59 @@ fn place_connectors(
     let mut best = None;
 
     // small conveyors
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (2,  0),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (2,  0),  false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2),  false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down,  (-1, 0), (-2, 0), false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-1, 0), (-2, 0), false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -1), (0, -2), false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -1), (0, -2), false);
     cmp_and_set(&mut best, stats);
 
     // big conveyors
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (3,  0), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (3,  0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  3), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down,  (-2, 0), (-3, 0), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-2, 0), (-3, 0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -2), (0, -3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -2), (0, -3), true);
     cmp_and_set(&mut best, stats);
 
     // combiners
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up, (1,  1), (2,  1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  1), (2,  1));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up, (1,  0), (2,  0));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  0), (2,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Up, (1, -1), (2, -1));
-    cmp_and_set(&mut best, stats);
-
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (1,  1), (1,  2));
-    cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2));
-    cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Right, (-1, 1), (-1, 2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1, -1), (2, -1));
     cmp_and_set(&mut best, stats);
 
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  1), (-2,  1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  1), (1,  2));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  0), (-2,  0));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Down, (-1, -1), (-2, -1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (-1, 1), (-1, 2));
     cmp_and_set(&mut best, stats);
 
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left, (1,  -1), (1,  -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  1), (-2,  1));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left, (0,  -1), (0,  -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  0), (-2,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(sim, tree, distance_map, start_pos, children_id, len, search_depth, Rotation::Left, (-1, -1), (-1, -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1, -1), (-2, -1));
+    cmp_and_set(&mut best, stats);
+
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (1,  -1), (1,  -2));
+    cmp_and_set(&mut best, stats);
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (0,  -1), (0,  -2));
+    cmp_and_set(&mut best, stats);
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1, -1), (-1, -2));
     cmp_and_set(&mut best, stats);
 
     best
 }
 
 fn place_conveyor(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
@@ -502,28 +601,26 @@ fn place_conveyor(
     big: bool,
 ) -> Option<(NodeId, PathStats)> {
     let end_pos = start_pos + end_offset;
-    let end_dist = distance_map.get(end_pos).flatten()?;
+    let end_dist = ctx.distance_map.get(end_pos).flatten()?;
     let conveyor = Conveyor::new(start_pos + pos_offset, rotation, big);
-    let building_id = sim::place_building(sim, Building::Conveyor(conveyor.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Conveyor(conveyor.clone())).ok()?;
 
     let node_id = increment_id(children_id, len);
 
     #[rustfmt::skip]
-    let (state, stats) = place_children_connectors(sim, tree, distance_map, node_id, end_pos, end_dist, search_depth - 1);
+    let (state, stats) = place_children_connectors(ctx, building_id, node_id, end_pos, end_dist, search_depth - 1);
 
-    sim::remove_building(sim, building_id);
+    sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Conveyor(conveyor);
     let node = ConnectionTreeNode::new(building, end_pos, state);
-    tree[node_id] = node;
+    ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
 }
 
 fn place_combiner(
-    sim: &mut Sim,
-    tree: &mut ConnectionTree,
-    distance_map: &DistanceMap,
+    ctx: &mut Context,
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
@@ -533,20 +630,20 @@ fn place_combiner(
     end_offset: impl Into<Pos>,
 ) -> Option<(NodeId, PathStats)> {
     let end_pos = start_pos + end_offset;
-    let end_dist = distance_map.get(end_pos).flatten()?;
+    let end_dist = ctx.distance_map.get(end_pos).flatten()?;
     let combiner = Combiner::new(start_pos + pos_offset, rotation);
-    let building_id = sim::place_building(sim, Building::Combiner(combiner.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Combiner(combiner.clone())).ok()?;
 
     let node_id = increment_id(children_id, len);
 
     #[rustfmt::skip]
-    let (state, stats) = place_children_connectors(sim, tree, distance_map, node_id, end_pos, end_dist, search_depth - 1);
+    let (state, stats) = place_children_connectors(ctx, building_id, node_id, end_pos, end_dist, search_depth - 1);
 
-    sim::remove_building(sim, building_id);
+    sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Combiner(combiner);
     let node = ConnectionTreeNode::new(building, end_pos, state);
-    tree[node_id] = node;
+    ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
 }
