@@ -81,7 +81,7 @@ impl ConnectionTreeNode {
 
     fn uninitialized() -> Self {
         Self {
-            building: ConnectionBuilding::Mine(Mine::new((i8::MIN, i8::MIN), Rotation::Up)),
+            building: ConnectionBuilding::Mine(Mine::new((i8::MIN, i8::MIN), Rotation::Right)),
             end_pos: Pos::new(i8::MIN, i8::MIN),
             state: State::Stopped,
         }
@@ -359,13 +359,13 @@ fn place_mines(
 ) -> Option<(NodeId, PathStats)> {
     let mut best = None;
 
-    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  -1), (3,  0));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Right,    (1,  -1), (3,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,   1), (0,  3));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,   1), (0,  3));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-2,  0), (-3, 0));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-2,  0), (-3, 0));
     cmp_and_set(&mut best, stats);
-    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, -2), (0, -3));
+    let stats = place_mine(ctx, start_pos, children_id, len, search_depth, Rotation::Up,  (-1, -2), (0, -3));
     cmp_and_set(&mut best, stats);
 
     best
@@ -538,52 +538,52 @@ fn place_connectors(
     let mut best = None;
 
     // small conveyors
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (2,  0),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right,    (1,  0), (2,  0),  false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  2),  false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-1, 0), (-2, 0), false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, 0), (-2, 0), false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -1), (0, -2), false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,  (0, -1), (0, -2), false);
     cmp_and_set(&mut best, stats);
 
     // big conveyors
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (1,  0), (3,  0), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right,    (1,  0), (3,  0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  3), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (-2, 0), (-3, 0), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-2, 0), (-3, 0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (0, -2), (0, -3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,  (0, -2), (0, -3), true);
     cmp_and_set(&mut best, stats);
 
     // combiners
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  1), (2,  1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  1), (2,  1));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  0), (2,  0));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (2,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1, -1), (2, -1));
-    cmp_and_set(&mut best, stats);
-
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  1), (1,  2));
-    cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (0,  1), (0,  2));
-    cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (-1, 1), (-1, 2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1, -1), (2, -1));
     cmp_and_set(&mut best, stats);
 
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  1), (-2,  1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (1,  1), (1,  2));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1,  0), (-2,  0));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  2));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1, -1), (-2, -1));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1, 1), (-1, 2));
     cmp_and_set(&mut best, stats);
 
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (1,  -1), (1,  -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1,  1), (-2,  1));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (0,  -1), (0,  -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1,  0), (-2,  0));
     cmp_and_set(&mut best, stats);
-    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1, -1), (-1, -2));
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1, -1), (-2, -1));
+    cmp_and_set(&mut best, stats);
+
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  -1), (1,  -2));
+    cmp_and_set(&mut best, stats);
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (0,  -1), (0,  -2));
+    cmp_and_set(&mut best, stats);
+    let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (-1, -1), (-1, -2));
     cmp_and_set(&mut best, stats);
 
     best

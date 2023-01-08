@@ -82,10 +82,10 @@ impl TryFrom<&Object> for Building {
             ObjectKind::Mine => Building::Mine(Mine::new(
                 pos,
                 match o.subtype {
-                    0 => Rotation::Up,
-                    1 => Rotation::Right,
-                    2 => Rotation::Down,
-                    3 => Rotation::Left,
+                    0 => Rotation::Right,
+                    1 => Rotation::Down,
+                    2 => Rotation::Left,
+                    3 => Rotation::Up,
                     t => return Err(IoError::UnknownMineSubtype(t)),
                 },
             )),
@@ -96,10 +96,10 @@ impl TryFrom<&Object> for Building {
                 Building::Conveyor(Conveyor::new(
                     pos,
                     match o.subtype % 4 {
-                        0 => Rotation::Up,
-                        1 => Rotation::Right,
-                        2 => Rotation::Down,
-                        3 => Rotation::Left,
+                        0 => Rotation::Right,
+                        1 => Rotation::Down,
+                        2 => Rotation::Left,
+                        3 => Rotation::Up,
                         _ => unreachable!(),
                     },
                     o.subtype / 4 == 1,
@@ -108,10 +108,10 @@ impl TryFrom<&Object> for Building {
             ObjectKind::Combiner => Building::Combiner(Combiner::new(
                 pos,
                 match o.subtype {
-                    0 => Rotation::Up,
-                    1 => Rotation::Right,
-                    2 => Rotation::Down,
-                    3 => Rotation::Left,
+                    0 => Rotation::Right,
+                    1 => Rotation::Down,
+                    2 => Rotation::Left,
+                    3 => Rotation::Up,
                     t => return Err(IoError::UnknownCombinerSubtype(t)),
                 },
             )),

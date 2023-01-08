@@ -533,10 +533,10 @@ pub enum CellKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rotation {
-    Up = 0,
-    Right = 1,
-    Down = 2,
-    Left = 3,
+    Right = 0,
+    Down = 1,
+    Left = 2,
+    Up = 3,
 }
 
 impl Rotation {

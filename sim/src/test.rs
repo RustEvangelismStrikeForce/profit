@@ -10,7 +10,7 @@ const TIME: u32 = 100;
 fn place_mine_rotated_up() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
-    let building = Building::Mine(Mine::new((3, 3), Rotation::Up));
+    let building = Building::Mine(Mine::new((3, 3), Rotation::Right));
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -28,7 +28,7 @@ fn place_mine_rotated_up() {
 fn place_mine_rotated_right() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
-    let building = Building::Mine(Mine::new((3, 3), Rotation::Right));
+    let building = Building::Mine(Mine::new((3, 3), Rotation::Down));
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -46,7 +46,7 @@ fn place_mine_rotated_right() {
 fn place_mine_rotated_down() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
-    let building = Building::Mine(Mine::new((3, 3), Rotation::Down));
+    let building = Building::Mine(Mine::new((3, 3), Rotation::Left));
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -64,7 +64,7 @@ fn place_mine_rotated_down() {
 fn place_mine_rotated_left() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
-    let building = Building::Mine(Mine::new((3, 3), Rotation::Left));
+    let building = Building::Mine(Mine::new((3, 3), Rotation::Up));
     place_building(&mut sim, building).unwrap();
 
     let id = Id(0);
@@ -82,10 +82,10 @@ fn place_mine_rotated_left() {
 fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_1() {
     let mut sim = Sim::new(Products::default(), Board::new(10, 10), TURNS, TIME);
 
-    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Up, false));
+    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Right, false));
     place_building(&mut sim, building).unwrap();
 
-    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Down, true));
+    let building = Building::Conveyor(Conveyor::new((4, 4), Rotation::Left, true));
     place_building(&mut sim, building).unwrap_err();
 
     let id = Id(0);
@@ -100,14 +100,14 @@ fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_1() {
 fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_2() {
     let mut sim = Sim::new(Products::default(), Board::new(20, 20), TURNS, TIME);
 
-    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Left, false));
+    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Up, false));
     place_building(&mut sim, building).unwrap();
-    let building = Building::Conveyor(Conveyor::new((14, 15), Rotation::Right, false));
+    let building = Building::Conveyor(Conveyor::new((14, 15), Rotation::Down, false));
     place_building(&mut sim, building).unwrap();
 
     let expected = sim.board.clone();
 
-    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Down, false));
+    let building = Building::Conveyor(Conveyor::new((13, 15), Rotation::Left, false));
     place_building(&mut sim, building).unwrap_err();
 
     assert_eq!(sim.board, expected);
@@ -117,18 +117,18 @@ fn failing_to_place_conveyor_doesnt_remove_part_of_existing_conveyor_2() {
 fn place_conveyor_removes_part_of_existing_conveyor() {
     let mut sim = Sim::new(Products::default(), Board::new(40, 40), TURNS, TIME);
 
-    let building = Building::Conveyor(Conveyor::new((22, 35), Rotation::Down, true));
+    let building = Building::Conveyor(Conveyor::new((22, 35), Rotation::Left, true));
     place_building(&mut sim, building).unwrap();
-    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Down, true));
+    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Left, true));
     place_building(&mut sim, building).unwrap();
-    let building = Building::Conveyor(Conveyor::new((16, 33), Rotation::Left, true));
+    let building = Building::Conveyor(Conveyor::new((16, 33), Rotation::Up, true));
     place_building(&mut sim, building).unwrap();
-    let building = Building::Conveyor(Conveyor::new((19, 35), Rotation::Left, true));
+    let building = Building::Conveyor(Conveyor::new((19, 35), Rotation::Up, true));
     place_building_unchecked(&mut sim, building);
 
     let expected = sim.board.clone();
 
-    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Right, false));
+    let building = Building::Conveyor(Conveyor::new((18, 35), Rotation::Down, false));
     let id = place_building_unchecked(&mut sim, building);
     remove_building(&mut sim, id);
 
@@ -145,7 +145,7 @@ fn deposit_mine_factory() {
     let building = Building::Deposit(Deposit::new((0, 0), 4, 4, ResourceType::Type0));
     place_building(&mut sim, building).unwrap();
 
-    let building = Building::Mine(Mine::new((5, 1), Rotation::Up));
+    let building = Building::Mine(Mine::new((5, 1), Rotation::Right));
     place_building(&mut sim, building).unwrap();
 
     let building = Building::Factory(Factory::new((8, 0), ProductType::Type0));
@@ -169,10 +169,10 @@ fn two_ingresses_at_one_egress() {
     let building = Building::Deposit(Deposit::new((0, 0), 2, 2, ResourceType::Type0));
     place_building(&mut sim, building).unwrap();
 
-    let building = Building::Mine(Mine::new((3, 0), Rotation::Up));
+    let building = Building::Mine(Mine::new((3, 0), Rotation::Right));
     place_building(&mut sim, building).unwrap();
 
-    let building = Building::Mine(Mine::new((1, 3), Rotation::Right));
+    let building = Building::Mine(Mine::new((1, 3), Rotation::Down));
     let res = place_building(&mut sim, building);
 
     println!("{:?}", sim.board);
