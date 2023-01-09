@@ -1,0 +1,121 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[ngermanb]{babel}
+% \usepackage{alphabeta} 
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+
+\usepackage[pdftex]{graphicx}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+
+\linespread{1.06}
+\setlength{\parskip}{6pt plus2pt minus2pt}
+
+\widowpenalty 10000
+\clubpenalty 10000
+\setcounter{tocdepth}{3}
+
+\newcommand{\eat}[1]{}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\usepackage[official]{eurosym}
+\usepackage{enumitem}
+\setlist{nolistsep,noitemsep}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cite}
+\usepackage{svg}
+\usepackage{amsfonts}
+\usepackage{tikz}
+\usetikzlibrary{shapes}
+
+\setlength{\parindent}{0pt}
+    
+\floatname{algorithm}{Prozedur}
+
+\begin{document}
+
+%===========================================================
+\begin{titlepage}
+\begin{center}
+
+% Top 
+
+% Title
+%\HRule \\[0.4cm]
+%\vspace{0.4cm}
+\vspace*{2cm}
+{ \LARGE 
+  \textbf{InformatiCup 2021 - Profit}\\[0.4cm]
+  Theoretische Ausarbeitung\\
+}
+%\HRule \\[1.5cm]
+\vspace*{2cm}
+
+% Author
+{ \large
+  RustEvangelismStrikeforce\\
+    \vspace*{1cm}
+  Tobias Schmitz \\ \href{tobias.schmitz@student.uni-siegen.de}{tobias.schmitz@student.uni-siegen.de} \\
+  Maik Romancewicz \\ \href{tobias.schmitz@student.uni-siegen.de}{maik.romancewicz@student.uni-siegen.de} \\
+}
+\vfill
+
+
+
+% Bottom
+ 
+\end{center}
+\end{titlepage}
+
+%\begin{abstract}
+%\lipsum[1-2]
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+%\end{abstract}
+\newpage
+
+%===========================================================
+\tableofcontents
+%\addtocontents{toc}{\protect\thispagestyle{empty}}
+\thispagestyle{empty}
+\newpage
+
+\thispagestyle{empty}
+\newpage
+
+\setcounter{page}{1}
+%===========================================================
+%===========================================================
+
+\section{Einleitung}
+Beim InformatiCup 2023 war die Aufgabe, im Rahmen einer rundenbasierten Simulation einen Produktionsprozess zu optimieren. Als Eingabe für das zu entwickelnde Programm erhält man ein 2-dimensionales Feld mit bereits platzierten Ressourcen und Hindernissen, eine Liste von Produkten deren Produktion gewisse Ressourcen benötigt und deren Produktion eine gewisse Punktzahl erzielt als auch ein Rundenlimit in dem die Simulation abläuft. Auf dem besagten Feld gilt es unterschiedliche Bauteile zu platzieren welche Ressourcen abbauen, diese transportieren und schließlich Produkte herstellen um Punkte zu erzielen. Ziel war es ein Programm zu entwickeln welches innerhalb einer vorgegebenen Zeit eine Liste an zu platzierenden Bauteilen generiert welche möglichst viele Punkte erzielt und dies in möglichst kurzer Zeit.
+
+\section{Theoretischer Ansatz}
+Im Laufe des Wettbewerbs hatten wir natürliche zahlreiche unterschiedliche Ideen wie man dieses Problem angehen kann und haben auch einige davon länger verfolgt. Letzten Endes sind wir zum Entschluss gekommen, dass wir die Aufgabenstellung in unterschiedliche Teilaufgaben unterteilen und versuchen diese einzeln anzugehen bevor wir die Erkenntisse die wir aus den Teilaufgaben gewonnen haben zu einer Gesamtlösung zusammenführen. Konkret bedeutet das, dass wir die Aufgabe in folgende Punkte unterteilt haben.
+
+\begin{enumerate}
+    \item Minen Platzierung
+    \item Fabrik Platzierung
+    \item Minen und Fabriken verbinden
+\end{enumerate}
+
+Die 
+\section{Implementierungen}
+
+\subsection{Connection Tree}
+
+\subsection{Regionen}
+
+% \section{Verworfene Ansätze}
+
+% weitere Heuristiken etc.
+%===========================================================
+%===========================================================
+\section{Softwarearchitektur}
+
+\section{Software Testing}
+
+\section{Coding Conventions}
+
+\section{Wartbarkeit}
+\end{document} 
