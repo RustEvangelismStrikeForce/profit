@@ -57,7 +57,7 @@ fn increment_id(children_id: ChildrenId, len: &mut u16) -> NodeId {
     NodeId(id)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct ChildrenId(u32);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,14 +105,14 @@ impl ConnectionBuilding {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum State {
     /// Search depth was exceeded, this path might be continued further
     Stopped,
     /// Connected to the factory
     Connected,
     /// Connected to the factory via an already existent path
-    Merged,
+    Merged(u16),
     /// A list of children
     Children {
         /// Start index into the connection tree nodes
@@ -240,9 +240,13 @@ pub(crate) fn connect_deposits_and_factory(
             // sim::place_building_unchecked(ctx.sim, node.building.to_building());
             let connector_id = sim::place_building(ctx.sim, node.building.to_building())
                 .expect("connector to be valid");
+            println!("placed {connector_id:?}");
 
             match node.state {
-                State::Connected | State::Merged => {
+                State::Connected=> {
+                    break Ok(ctx.sim.clone());
+                }
+                State::Merged(_) => {
                     break Ok(ctx.sim.clone());
                 }
                 State::Stopped => {
@@ -280,12 +284,12 @@ pub(crate) fn connect_deposits_and_factory(
                 runs.push((sim, new));
             }
             Err(e) => {
+                // println!("{:?}\nError: {e}", ctx.sim.board);
                 errors += 1;
                 if let Some((last_sim, _)) = runs.last() {
                     ctx.sim.clone_from(last_sim);
                 }
                 if errors == factory_stats.deposits_in_reach.len() {
-                    // println!("Error: {e}");
                     break;
                 }
             }
@@ -311,9 +315,10 @@ fn continue_subtree(
                 // TODO: consider somehow storing a list of equally good paths.
                 return Some((node_id, PathStats::new(0, search_depth)));
             }
-            State::Merged => {
+            State::Merged(path_len) => {
                 // TODO: consider somehow storing a list of equally good paths.
-                return Some((node_id, PathStats::new(0, search_depth)));
+                let dist = path_len_dist_score(path_len);
+                return Some((node_id, PathStats::new(dist, search_depth)));
             }
             State::Stopped => {
                 let end_pos = node.end_pos;
@@ -474,7 +479,7 @@ fn place_children_connectors(
 
 #[inline(always)]
 fn find_connection_at(
-    ctx: &mut Context,
+    ctx: &Context,
     parent_id: NodeId,
     connector_id: Id,
     pos: Pos,
@@ -485,9 +490,9 @@ fn find_connection_at(
             if let Some(path_len) = find_connection(ctx, cell.id) {
                 // HACK: rather than calculating some approximate dist consider adding another
                 // value to PathStats
-                let dist = path_len * 3 + 2;
+                let dist = path_len_dist_score(path_len);
                 return Some((
-                    State::Merged,
+                    State::Merged(path_len),
                     Some((parent_id, PathStats::new(dist, search_depth))),
                 ));
             }
@@ -502,9 +507,11 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
     let mut path = SmallVec::<[_; 15]>::new();
 
     'path: loop {
+        path.push(current_id);
+
         for conn in ctx.sim.connections.iter() {
             if conn.output_id == current_id {
-                if path.contains(&conn.output_id) {
+                if path.contains(&conn.input_id) {
                     // we're in a loop
                     return None;
                 }
@@ -514,7 +521,6 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
                 if current_id == ctx.factory_id {
                     return Some(path.len() as u16);
                 }
-                path.push(current_id);
 
                 continue 'path;
             }
@@ -523,6 +529,11 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
         // the path ends here
         return None;
     }
+}
+
+#[inline(always)]
+fn path_len_dist_score(path_len: u16) -> u16 {
+    200
 }
 
 /// Place conveyors or combiners
