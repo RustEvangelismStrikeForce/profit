@@ -63,7 +63,7 @@ struct ChildrenId(u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct NodeId(u32);
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct ConnectionTreeNode {
     building: ConnectionBuilding,
     end_pos: Pos,
@@ -88,7 +88,7 @@ impl ConnectionTreeNode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum ConnectionBuilding {
     Mine(Mine),
     Conveyor(Conveyor),
@@ -225,7 +225,7 @@ pub(crate) fn connect_deposits_and_factory(
 
         let mut path = Vec::new();
         let res = loop {
-            let Some((node_id, _)) = best else {
+            let Some((node_id, _stats)) = best else {
                 break Err(crate::Error::NoPath(
                     deposit_stats.id,
                     deposit_pos,
@@ -240,10 +240,9 @@ pub(crate) fn connect_deposits_and_factory(
             // sim::place_building_unchecked(ctx.sim, node.building.to_building());
             let connector_id = sim::place_building(ctx.sim, node.building.to_building())
                 .expect("connector to be valid");
-            println!("placed {connector_id:?}");
 
             match node.state {
-                State::Connected=> {
+                State::Connected => {
                     break Ok(ctx.sim.clone());
                 }
                 State::Merged(_) => {
@@ -318,7 +317,8 @@ fn continue_subtree(
             State::Merged(path_len) => {
                 // TODO: consider somehow storing a list of equally good paths.
                 let dist = path_len_dist_score(path_len);
-                return Some((node_id, PathStats::new(dist, search_depth)));
+                let stats = Some((node_id, PathStats::new(dist, search_depth)));
+                cmp_and_set(&mut best, stats);
             }
             State::Stopped => {
                 let end_pos = node.end_pos;
@@ -421,16 +421,40 @@ fn place_children_connectors(
     }
 
     // check if we're already connected to another path leading to the factory
-    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (-1, 0), search_depth) {
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (-1, 0),
+        search_depth,
+    ) {
         return s;
     }
-    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (1, 0), search_depth) {
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (1, 0),
+        search_depth,
+    ) {
         return s;
     }
-    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (0, -1), search_depth) {
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (0, -1),
+        search_depth,
+    ) {
         return s;
     }
-    if let Some(s) = find_connection_at(ctx, parent_id, connector_id, start_pos + (0, 1), search_depth) {
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (0, 1),
+        search_depth,
+    ) {
         return s;
     }
 
@@ -533,7 +557,7 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
 
 #[inline(always)]
 fn path_len_dist_score(path_len: u16) -> u16 {
-    200
+    3 * path_len + 3
 }
 
 /// Place conveyors or combiners
@@ -549,23 +573,23 @@ fn place_connectors(
     let mut best = None;
 
     // small conveyors
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right,    (1,  0), (2,  0),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (2,  0), false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  2),  false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (0,  1), (0,  2), false);
     cmp_and_set(&mut best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, 0), (-2, 0), false);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,  (0, -1), (0, -2), false);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (0, -1), (0, -2), false);
     cmp_and_set(&mut best, stats);
 
     // big conveyors
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right,    (1,  0), (3,  0), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (3,  0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (0,  1), (0,  3), true);
     cmp_and_set(&mut best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-2, 0), (-3, 0), true);
     cmp_and_set(&mut best, stats);
-    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,  (0, -2), (0, -3), true);
+    let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (0, -2), (0, -3), true);
     cmp_and_set(&mut best, stats);
 
     // combiners
