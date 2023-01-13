@@ -473,10 +473,9 @@ fn serialize_solution() {
 }
 
 #[test]
-fn run_task_002_solution_001() {
-    let run_task_002_solution_002 =
-        std::fs::read_to_string("../tasks/002/solution_001.json").unwrap();
-    let task: dto::Task = serde_json::from_str(&run_task_002_solution_002).unwrap();
+fn run_task_003_solution_001() {
+    let input = std::fs::read_to_string("../tasks/003/solution_001.json").unwrap();
+    let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
     let run = run(&sim);
     assert_eq!(
@@ -490,8 +489,8 @@ fn run_task_002_solution_001() {
 }
 
 #[test]
-fn run_002_solution_002() {
-    let input = std::fs::read_to_string("../tasks/002/solution_002.json").unwrap();
+fn run_003_solution_002() {
+    let input = std::fs::read_to_string("../tasks/003/solution_002.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
     let run = run(&sim);
