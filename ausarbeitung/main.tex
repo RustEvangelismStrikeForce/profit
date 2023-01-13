@@ -1,0 +1,184 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[ngermanb]{babel}
+% \usepackage{alphabeta} 
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+
+\usepackage[pdftex]{graphicx}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+
+\linespread{1.06}
+\setlength{\parskip}{6pt plus2pt minus2pt}
+
+\widowpenalty 10000
+\clubpenalty 10000
+\setcounter{tocdepth}{3}
+
+\newcommand{\eat}[1]{}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\usepackage[official]{eurosym}
+\usepackage{enumitem}
+\setlist{nolistsep,noitemsep}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cite}
+\usepackage{svg}
+\usepackage{amsfonts}
+\usepackage{tikz}
+\usetikzlibrary{shapes}
+
+\setlength{\parindent}{0pt}
+    
+\floatname{algorithm}{Prozedur}
+
+\begin{document}
+
+%===========================================================
+\begin{titlepage}
+\begin{center}
+
+% Top 
+
+% Title
+%\HRule \\[0.4cm]
+%\vspace{0.4cm}
+\vspace*{2cm}
+{ \LARGE 
+  \textbf{InformatiCup 2021 - Profit}\\[0.4cm]
+  Theoretische Ausarbeitung\\
+}
+%\HRule \\[1.5cm]
+\vspace*{2cm}
+
+% Author
+{ \large
+  RustEvangelismStrikeforce\\
+    \vspace*{1cm}
+    \includegraphics[width=0.3\textwidth]{logo.png}\\
+  Tobias Schmitz \\ \href{tobias.schmitz@student.uni-siegen.de}{tobias.schmitz@student.uni-siegen.de} \\
+  Maik Romancewicz \\ \href{tobias.schmitz@student.uni-siegen.de}{maik.romancewicz@student.uni-siegen.de} \\
+}
+\vfill
+
+
+
+% Bottom
+ 
+\end{center}
+\end{titlepage}
+
+%\begin{abstract}
+%\lipsum[1-2]
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+%\end{abstract}
+\newpage
+
+%===========================================================
+\tableofcontents
+%\addtocontents{toc}{\protect\thispagestyle{empty}}
+\thispagestyle{empty}
+\newpage
+
+\thispagestyle{empty}
+\newpage
+
+\setcounter{page}{1}
+%===========================================================
+%===========================================================
+
+\section{Einleitung}
+Beim InformatiCup 2023 war die Aufgabe, im Rahmen einer rundenbasierten Simulation einen Produktionsprozess zu optimieren. Als Eingabe für das zu entwickelnde Programm erhält man ein 2-dimensionales Feld mit bereits platzierten Ressourcen und Hindernissen, eine Liste von Produkten deren Produktion gewisse Ressourcen benötigt und deren Produktion eine gewisse Punktzahl erzielt als auch ein Rundenlimit in dem die Simulation abläuft. Auf dem besagten Feld gilt es unterschiedliche Bauteile zu platzieren welche Ressourcen abbauen, diese transportieren und schließlich Produkte herstellen um Punkte zu erzielen. Ziel war es ein Programm zu entwickeln welches innerhalb einer vorgegebenen Zeit eine Liste an zu platzierenden Bauteilen generiert welche möglichst viele Punkte erzielt, in möglichst kurzer Zeit.
+
+\includegraphics[width=\textwidth]{task1.png}
+
+Eine ausführliche Beschreibung der Aufgabe ist auf der Website bzw. im Git Repository des Informaticups 2023 zu finden.
+
+Wir werden in der folgenden Ausarbeitung anhand des obigen Beispiels erklären wie unsere Lösung funktioniert, welche Gedanken wir uns dazu gemacht haben und wie unser Programm letztendlich zu folgender Lösung kommt:
+
+% Lösungsbild einfügen
+\newpage
+
+\section{Theoretischer Ansatz}
+Im Laufe des Wettbewerbs hatten wir natürlich zahlreiche unterschiedliche Ideen wie man dieses Problem angehen kann und haben auch einige davon länger verfolgt. Letzten Endes sind wir zum Entschluss gekommen, dass wir die Aufgabenstellung in unterschiedliche Teilaufgaben unterteilen und versuchen diese einzeln anzugehen bevor wir die Erkenntisse die wir aus den Teilaufgaben gewonnen haben zu einer Gesamtlösung zusammenführen. Konkret bedeutet das, dass wir die Aufgabe in folgende Punkte unterteilt haben.
+
+\begin{enumerate}
+    \item Factory Platzierung
+    \item Minen Platzierung
+    \item Minen und Fabriken verbinden
+\end{enumerate}
+
+Die Idee hinter dieser Aufteilung war es, dass wir unsere Lösungen soweit Laufzeit-technisch optimieren, dass wir uns nicht auf einzelne Heuristiken verlassen müssen, sondern wir möglichst viele unterschiedliche Konfigurationen der Lösungen von den Teilaufgaben ausprobieren können. Dazu bringen wir die Lösungen der einzelnen Teilaufgaben in eine Rangliste und testen diese dann nacheinander kombiniert mit den Lösungen der anderen Teilaufgaben.
+
+\newpage
+
+\section{Implementierungen}
+
+\subsection{Simulationsumgebung}
+Das erste was wir zu Beginn des Wettbewerbs implementiert haben, ist eine Simulationsumgebung, die anhand eines Inputs die Simulation durchführt und uns die Punktzahl und die dafür benötigten Runden zurückgibt.
+
+Damit haben wir uns zum Einen von der \href{profit.phinau.de}{Simulation} die uns für den Wettbewerb zur Verfügung gestellt wurde unabhängig gemacht und haben eine Simulationsumgebung die um ein Vielfaches schneller ist als die Web-basierte Implementierung auf der \href{profit.phinau.de}{profit.phinau.de} Website. Ursprünglich ist die Simulationsumgebung entstanden um als Supervision für Machine-Learning basierte Methoden (z.B als Reinforcement Learning environment) zu dienen. Allerdings haben wir unseren Ansatz im Laufe des Wettbewerbs geändert. Mithilfe unserer Umgebung können wir eine gegebene Lösung im Bruchteil einer Millisekunde testen und haben ein Feedback darüber wie gut diese Lösung ist.
+
+Die Simulation, als auch unsere Lösung sind vollständig in Rust implementiert worden. Wir haben Rust wegen der hohen Performance und der Memory Safety für dieses Projekt gewählt. Da die Aufgabe innerhalb eines bestimmten Zeitlimits zu lösen war und wir uns mit unserem Lösungsansatz vor Allem auf die Optimierung unseres Programmcodes verlassen haben war Rust die sinnvollste Wahl. 
+%Implementierung weiter erklären
+
+\subsection{Regionen}
+Beim Ausführen unserer Lösung wird als Erstes die Umgebung in unterschiedliche Regionen unterteilt für den Fall, dass das Feld in mehrere Bereiche unterteilt wurde, die man nicht miteinander verbinden kann. 
+
+Um diese Regionen zu finden laufen wir mithilfe eines rekursiven Path-finding Algorithmus einmal über das Feld und überprüfen für jedes Feld ob sich bereits ein Deposit oder ein Obstacle darauf befindet, falls wir ein Objekt finden werden die Felder mit einem Objekt aus der Eingabe gematched. Wenn alle Felder besucht wurden brechen wir ab, falls noch nicht alle Felder besucht wurden suchen wir an den umliegenden Stellen rekursiv weiter.
+
+%Pseudocode
+
+\newpage
+
+\subsection{Distance Maps}
+Als nächstes generieren wir für jedes Deposit eine Distance Map.
+Eine Distance Map ist eine Map die für jede Zelle die Manhattan Distanz zu einem bestimmten Gebäude enthält.
+
+\includegraphics[width=\textwidth]{distance_map.png}
+
+
+In dieser Distance Map zum Beispiel sehen wir die Distanzen von jeder Zelle zum Deposit unten links. Alle Zellen die als Punkt angezeigt werden sind mit Objekten belegt. Diese Distance Maps verwenden wir sowohl um die Factory zu platzieren, damit diese möglichst nah an bzw. möglichst gut zwischen den relevanten Deposits platziert wird und auch später um die kürzesten Wege von A nach B zu finden.
+
+\subsection{Produkte filtern}
+Als nächstes werden für jede Region anhand von einfachen Kriterien die Produkte gefiltert. Produkte die mehr Ressourcen oder andere Ressourcen benötigen als in einer Region vorhanden sind, können in dieser Region selbstverständlich nicht produziert werden.
+
+\subsection{Deposits gewichten}
+Nicht jede Ressource ist zur Produktion eines Produkts gleich wichtig. Wie viele Deposits  von einer Ressource zur Verfügung stehen, wie viele Ressourcen zur Produktion eines Produkts benötigt werden und auch wie viele Ressourcen pro Deposit zur Verfügung stehen muss mit in Betracht gezogen werden um eine sinnvolle Gewichtung der Deposits zu erstellen.
+
+%Gewichtung Formel
+
+Diese Gewichtung verwenden wir im nächsten Schritt um die Factory zu platzieren welche dann das gewünschte Produkt herstellt.
+
+\subsection{Factory platzieren}
+Zuerst werden alle Felder auf denen keine Factory platziert werden kann rausgefiltert  und auch alle Factory Platzierungen die nicht alle nötigen Ressourcen rechtzeitig erhalten würden. Danach werden die möglichen Felder mithilfe der Deposit Gewichtung in eine Rangliste gebracht. Am besten sind also Factories die folgenden Score maximieren:
+
+%Formel für das Ranking
+
+\subsection{Connection Tree}
+Im nächsten Schritt passiert der Großteil unserer Lösung. Das Verbinden von Deposits und Factories mithilfe von Minen und den Verbindungsbausteinen. Wie bereits oben beschrieben basiert unsere Lösung in sehr großen Teilen möglichst effizient viele Möglichkeiten auszuprobieren und mit vielversprechenden Varianten weiter zu arbeiten. Vor Allem im Falle der Verbindungen ist dies sehr zum Tragen gekommen.
+
+Unsere Lösung baut nach und nach einen Baum aus Minen-Platzierungen und daran geknüpfte Verbindungenn auf und vergleicht in jedem Schritt den jetzigen Pfad mit dem bisher "Besten". Am Besten ist ein Baustein der die Distanz zur gewünschten Factory möglichst stark minimiert. 
+
+Dazu iterieren wir über zahlreiche unterschiedliche Reihenfolgen unserer Deposits die wir mit unserer Factory verbinden wollen, platzieren wenn möglich eine Mine am Deposit und versuchen diese dann mithilfe unserer Distance Map Schritt für Schritt mit der Factory zu verbinden.
+
+Eine mögliche Platzierung einer Mine wird also zu einem Unterbaum, welcher wiederum aus Unterbäumen von Verbindungsbausteinen besteht usw. Man kann die kürzesten Wege natürlich ohne viel Aufwand jederzeit finden, allerdings sind die kürzesten Wege nicht immer hilfreich, da dieser möglicherweise andere Wege oder weitere Platzierungen von Minen versperren. Wir haben uns also bewusst dagegen entschieden einfach immer den schnellsten Weg zu suchen, sondern probieren unterschiedliche Wege aus um am Ende eine möglichst hohe Gesamtpunktzahl zu erzielen.
+
+
+% \section{Verworfene Ansätze}
+
+% weitere Heuristiken etc.
+%===========================================================
+%===========================================================
+
+\newpage
+
+\section{Softwarearchitektur}
+
+\section{Software Testing}
+
+\section{Coding Conventions}
+
+\section{Wartbarkeit}
+\end{document} 
