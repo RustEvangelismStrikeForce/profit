@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use profit_sim::{pos, Building, Id, Pos, Sim};
+use sim::{pos, Building, Id, Pos, Sim};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DistanceMap {

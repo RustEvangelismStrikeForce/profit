@@ -1,5 +1,3 @@
-use profit_sim as sim;
-use profit_solver as solver;
 use sim::{dto, Sim};
 
 fn main() {

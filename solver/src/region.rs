@@ -1,4 +1,3 @@
-use profit_sim as sim;
 use sim::{pos, Building, Id, Pos, Sim, MAX_BOARD_SIZE};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

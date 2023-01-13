@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use profit_sim as sim;
 use sim::{dto, place_building, pos, Board, Building, Id, Obstacle, Products, Sim};
 
 use crate::{find_regions, Regions};

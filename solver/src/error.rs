@@ -1,6 +1,5 @@
 use core::fmt;
 
-use profit_sim as sim;
 use sim::{Id, Pos};
 
 pub type Result<T> = std::result::Result<T, Error>;

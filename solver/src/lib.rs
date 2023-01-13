@@ -1,4 +1,3 @@
-use profit_sim as sim;
 use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, SimRun, FACTORY_SIZE};
 
 use connect::*;

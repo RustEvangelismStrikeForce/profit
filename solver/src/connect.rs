@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use profit_sim as sim;
 use sim::{
     Building, CellKind, Combiner, Conveyor, Factory, Id, Mine, Pos, Rotation, Sim, SimRun,
     FACTORY_SIZE,
