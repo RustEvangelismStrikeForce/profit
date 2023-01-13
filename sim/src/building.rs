@@ -1,8 +1,3 @@
-//! origin: #
-//! inert:  o
-//! input:  +
-//! output: -
-
 use std::array;
 
 use crate::{Board, Connection, Id, Pos, Rotation};

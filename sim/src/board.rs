@@ -1,3 +1,8 @@
+//! origin: #
+//! inert:  o
+//! input:  +
+//! output: -
+
 use core::fmt;
 
 use crate::{Building, Error, Sim};
