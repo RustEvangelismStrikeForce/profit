@@ -14,53 +14,33 @@ fn path_stats() {
 }
 
 #[test]
-fn find_conveyor_connection() {
+fn find_conveyor_connection_around() {
     let board = Board::new(20, 20);
     let products = Products::default();
     let mut sim = Sim::new(products, board, 20, 20);
 
-    let building = Building::Factory(Factory::new((4, 2), ProductType::Type0));
-    let factory_id = sim::place_building(&mut sim, building).unwrap();
+    let factory = Factory::new((4, 2), ProductType::Type0);
+    let factory_id = sim::place_building(&mut sim, Building::Factory(factory)).unwrap();
 
-    let building = Building::Conveyor(Conveyor::new((10, 3), Rotation::Left, false));
-    let conveyor_id = sim::place_building(&mut sim, building).unwrap();
-
+    let distance_map = map_distances(&sim, factory.pos, FACTORY_SIZE, FACTORY_SIZE);
     let ctx = Context {
         sim: &mut sim,
         tree: ConnectionTree::new(),
-        distance_map: DistanceMap::new(20, 20),
+        distance_map,
         factory_id,
     };
-
-    let path_len = find_connection(&ctx, conveyor_id);
-    assert_eq!(path_len, Some(1));
-}
-
-#[test]
-fn find_conveyor_connection_at() {
-    let board = Board::new(20, 20);
-    let products = Products::default();
-    let mut sim = Sim::new(products, board, 20, 20);
-
-    let building = Building::Factory(Factory::new((4, 2), ProductType::Type0));
-    let factory_id = sim::place_building(&mut sim, building).unwrap();
 
     let building = Building::Conveyor(Conveyor::new((10, 3), Rotation::Left, false));
-    let conveyor_id = sim::place_building(&mut sim, building).unwrap();
+    sim::place_building(ctx.sim, building).unwrap();
 
-    let ctx = Context {
-        sim: &mut sim,
-        tree: ConnectionTree::new(),
-        distance_map: DistanceMap::new(20, 20),
-        factory_id,
-    };
+    let building = Building::Conveyor(Conveyor::new((13, 3), Rotation::Left, false));
+    let conveyor_id = sim::place_building(ctx.sim, building).unwrap();
 
     let search_depth = 2;
     let parent_id = NodeId(324);
     let (state, stats) =
-        find_connection_at(&ctx, parent_id, Id(32423), Pos::new(11, 3), search_depth).unwrap();
-    let path_len = 1;
-    let dist = path_len_dist_score(path_len);
-    assert_eq!(state, State::Merged(path_len));
-    assert_eq!(stats, Some((parent_id, PathStats::new(dist, search_depth))));
+        find_connection_around(&ctx, parent_id, conveyor_id, Pos::new(12, 3), search_depth)
+            .unwrap();
+    assert_eq!(state, State::Merged);
+    assert_eq!(stats, Some((parent_id, PathStats::new(0, search_depth - 1))));
 }
