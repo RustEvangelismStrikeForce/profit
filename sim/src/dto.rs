@@ -9,7 +9,7 @@ use crate::{
 pub struct Task {
     pub width: i8,
     pub height: i8,
-    pub objects: Vec<Object>,
+    pub objects: Vec<TaskObject>,
     pub products: Vec<Product>,
     pub turns: u32,
     pub time: u32,
@@ -37,29 +37,23 @@ impl TryFrom<&Task> for Sim {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Solution {
-    pub objects: Vec<Object>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Object {
+pub struct TaskObject {
     #[serde(rename = "type")]
     pub kind: ObjectKind,
     #[serde(default)]
     pub subtype: u8,
     pub x: i8,
     pub y: i8,
-    // TODO: consider Option<NonZeroU8>
     #[serde(default)]
     pub width: u8,
     #[serde(default)]
     pub height: u8,
 }
 
-impl TryFrom<&Object> for Building {
+impl TryFrom<&TaskObject> for Building {
     type Error = IoError;
 
-    fn try_from(o: &Object) -> Result<Self, IoError> {
+    fn try_from(o: &TaskObject) -> Result<Self, IoError> {
         let pos = pos(o.x, o.y);
         Ok(match o.kind {
             ObjectKind::Deposit => Building::Deposit(Deposit::new(
@@ -165,6 +159,67 @@ impl TryFrom<u8> for ResourceType {
             6 => Ok(ResourceType::Type6),
             7 => Ok(ResourceType::Type7),
             t => Err(IoError::UnknownResourceType(t)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Solution {
+    pub objects: Vec<SolutionObject>,
+}
+
+impl From<&Sim> for Solution {
+    fn from(sim: &Sim) -> Self {
+        let objects = sim
+            .buildings
+            .iter()
+            .filter_map(|(_, b)| SolutionObject::try_from(b).ok())
+            .collect();
+        Solution { objects }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SolutionObject {
+    #[serde(rename = "type")]
+    pub kind: ObjectKind,
+    #[serde(default)]
+    pub subtype: u8,
+    pub x: i8,
+    pub y: i8,
+}
+
+impl TryFrom<&Building> for SolutionObject {
+    type Error = ();
+
+    fn try_from(building: &Building) -> Result<SolutionObject, ()> {
+        match building {
+            Building::Deposit(_) => Err(()),
+            Building::Obstacle(_) => Err(()),
+            Building::Mine(mine) => Ok(SolutionObject {
+                kind: ObjectKind::Mine,
+                subtype: mine.rotation as u8,
+                x: mine.pos.x,
+                y: mine.pos.y,
+            }),
+            Building::Conveyor(conveyor) => Ok(SolutionObject {
+                kind: ObjectKind::Conveyor,
+                subtype: conveyor.rotation as u8 + 4 * (conveyor.big as u8),
+                x: conveyor.pos.x,
+                y: conveyor.pos.y,
+            }),
+            Building::Combiner(combiner) => Ok(SolutionObject {
+                kind: ObjectKind::Combiner,
+                subtype: combiner.rotation as u8,
+                x: combiner.pos.x,
+                y: combiner.pos.y,
+            }),
+            Building::Factory(factory) => Ok(SolutionObject {
+                kind: ObjectKind::Factory,
+                subtype: factory.product_type as u8,
+                x: factory.pos.x,
+                y: factory.pos.y,
+            }),
         }
     }
 }

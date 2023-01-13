@@ -1,5 +1,5 @@
 use profit_sim as sim;
-use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, FACTORY_SIZE};
+use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, SimRun, FACTORY_SIZE};
 
 use connect::*;
 pub use distance::*;
@@ -53,7 +53,7 @@ struct Score {
 }
 
 // TODO: consider using a `bumpalo` to limit allocations
-pub fn solve(sim: &Sim) -> sim::Result<()> {
+pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
     let regions = find_regions(sim);
     let deposit_distance_maps = map_deposit_distances(sim);
 
@@ -261,11 +261,13 @@ pub fn solve(sim: &Sim) -> sim::Result<()> {
 
             solutions.sort_by_key(|(_, r)| r.clone());
 
-            for (s, r) in solutions {
+            for (s, r) in &solutions {
                 println!("{:?}\n{:?}", s.board, r);
             }
+
+            return solutions.pop().ok_or(crate::Error::NoSolution);
         }
     }
 
-    Ok(())
+    Err(crate::Error::NoSolution)
 }

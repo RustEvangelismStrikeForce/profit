@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use crate::dto::{self, Object};
+use crate::dto::{self, TaskObject};
 use crate::*;
 
 const TURNS: u32 = 100;
@@ -190,7 +190,7 @@ fn deserialize_task_001() {
             width: 30,
             height: 20,
             objects: vec![
-                dto::Object {
+                dto::TaskObject {
                     kind: dto::ObjectKind::Deposit,
                     subtype: 0,
                     x: 1,
@@ -198,7 +198,7 @@ fn deserialize_task_001() {
                     width: 5,
                     height: 5,
                 },
-                dto::Object {
+                dto::TaskObject {
                     kind: dto::ObjectKind::Deposit,
                     subtype: 1,
                     x: 1,
@@ -206,7 +206,7 @@ fn deserialize_task_001() {
                     width: 5,
                     height: 5,
                 },
-                dto::Object {
+                dto::TaskObject {
                     kind: dto::ObjectKind::Deposit,
                     subtype: 2,
                     x: 22,
@@ -214,7 +214,7 @@ fn deserialize_task_001() {
                     width: 7,
                     height: 7,
                 },
-                dto::Object {
+                dto::TaskObject {
                     kind: dto::ObjectKind::Obstacle,
                     subtype: 0,
                     x: 11,
@@ -222,7 +222,7 @@ fn deserialize_task_001() {
                     width: 19,
                     height: 2,
                 },
-                dto::Object {
+                dto::TaskObject {
                     kind: dto::ObjectKind::Obstacle,
                     subtype: 0,
                     x: 11,
@@ -277,9 +277,9 @@ fn convert_task_001_to_sim() {
 #[test]
 fn deserialize_solution_001() {
     let file = File::open("../solutions/001/solution.json").unwrap();
-    let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
-    let objects: Vec<dto::Object> = vec![
-        Object {
+    let serialized: Vec<dto::TaskObject> = serde_json::from_reader(file).unwrap();
+    let objects: Vec<dto::TaskObject> = vec![
+        TaskObject {
             kind: dto::ObjectKind::Combiner,
             subtype: 3,
             x: 9,
@@ -287,7 +287,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 11,
@@ -295,7 +295,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 2,
             x: 19,
@@ -303,7 +303,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Factory,
             subtype: 0,
             x: 13,
@@ -311,7 +311,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 1,
             x: 14,
@@ -319,7 +319,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 3,
             x: 5,
@@ -327,7 +327,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 0,
             x: 6,
@@ -335,7 +335,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 9,
@@ -343,7 +343,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 7,
@@ -351,7 +351,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
@@ -359,7 +359,7 @@ fn deserialize_solution_001() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
@@ -373,8 +373,8 @@ fn deserialize_solution_001() {
 
 #[test]
 fn serialize_solution() {
-    let objects: Vec<dto::Object> = vec![
-        Object {
+    let objects: Vec<dto::TaskObject> = vec![
+        TaskObject {
             kind: dto::ObjectKind::Combiner,
             subtype: 3,
             x: 9,
@@ -382,7 +382,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 11,
@@ -390,7 +390,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 2,
             x: 19,
@@ -398,7 +398,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Factory,
             subtype: 0,
             x: 13,
@@ -406,7 +406,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 1,
             x: 14,
@@ -414,7 +414,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 3,
             x: 5,
@@ -422,7 +422,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Mine,
             subtype: 0,
             x: 6,
@@ -430,7 +430,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 9,
@@ -438,7 +438,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 4,
             x: 7,
@@ -446,7 +446,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
@@ -454,7 +454,7 @@ fn serialize_solution() {
             width: 0,
             height: 0,
         },
-        Object {
+        TaskObject {
             kind: dto::ObjectKind::Conveyor,
             subtype: 7,
             x: 10,
@@ -468,7 +468,7 @@ fn serialize_solution() {
     serde_json::to_writer(file, &objects).unwrap();
 
     let file = File::open("../target/test.json").unwrap();
-    let serialized: Vec<dto::Object> = serde_json::from_reader(file).unwrap();
+    let serialized: Vec<dto::TaskObject> = serde_json::from_reader(file).unwrap();
     assert_eq!(serialized, objects)
 }
 

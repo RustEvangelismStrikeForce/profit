@@ -1,11 +1,9 @@
-use std::io::stdin;
-
 use profit_sim as sim;
 use profit_solver as solver;
 use sim::{dto, Sim};
 
 fn main() {
-    let stdin = stdin();
+    let stdin = std::io::stdin();
     let mut input = String::new();
     stdin.read_line(&mut input).unwrap();
 
@@ -15,6 +13,10 @@ fn main() {
 
     match solver::solve(&sim) {
         Err(e) => println!("{e}"),
-        Ok(_) => println!("hier könnte ihre werbung stehen"),
+        Ok((sim, _)) => {
+            let solution = dto::Solution::from(&sim);
+            let mut stdout = std::io::stdout();
+            serde_json::to_writer(&mut stdout, &solution).expect("at this point we're fucked");
+        }
     };
 }
