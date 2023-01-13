@@ -66,14 +66,16 @@ struct NodeId(u32);
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ConnectionTreeNode {
     building: ConnectionBuilding,
+    start_pos: Pos,
     end_pos: Pos,
     state: State,
 }
 
 impl ConnectionTreeNode {
-    fn new(building: ConnectionBuilding, end_pos: Pos, state: State) -> Self {
+    fn new(building: ConnectionBuilding, start_pos: Pos, end_pos: Pos, state: State) -> Self {
         Self {
             building,
+            start_pos,
             end_pos,
             state,
         }
@@ -82,6 +84,7 @@ impl ConnectionTreeNode {
     fn uninitialized() -> Self {
         Self {
             building: ConnectionBuilding::Mine(Mine::new((i8::MIN, i8::MIN), Rotation::Right)),
+            start_pos: Pos::new(i8::MIN, i8::MIN),
             end_pos: Pos::new(i8::MIN, i8::MIN),
             state: State::Stopped,
         }
@@ -112,7 +115,7 @@ enum State {
     /// Connected to the factory
     Connected,
     /// Connected to the factory via an already existent path
-    Merged(u16),
+    Merged,
     /// A list of children
     Children {
         /// Start index into the connection tree nodes
@@ -245,7 +248,7 @@ pub(crate) fn connect_deposits_and_factory(
                 State::Connected => {
                     break Ok(ctx.sim.clone());
                 }
-                State::Merged(_) => {
+                State::Merged => {
                     break Ok(ctx.sim.clone());
                 }
                 State::Stopped => {
@@ -269,7 +272,6 @@ pub(crate) fn connect_deposits_and_factory(
 
         match res {
             Ok(sim) => {
-                // println!("ok");
                 let new = sim::run(&sim);
                 if let Some((_, last)) = runs.last() {
                     // maybe don't break immediately
@@ -282,8 +284,7 @@ pub(crate) fn connect_deposits_and_factory(
                 }
                 runs.push((sim, new));
             }
-            Err(e) => {
-                // println!("{:?}\nError: {e}", ctx.sim.board);
+            Err(_) => {
                 errors += 1;
                 if let Some((last_sim, _)) = runs.last() {
                     ctx.sim.clone_from(last_sim);
@@ -314,11 +315,16 @@ fn continue_subtree(
                 // TODO: consider somehow storing a list of equally good paths.
                 return Some((node_id, PathStats::new(0, search_depth)));
             }
-            State::Merged(path_len) => {
-                // TODO: consider somehow storing a list of equally good paths.
-                let dist = path_len_dist_score(path_len);
-                let stats = Some((node_id, PathStats::new(dist, search_depth)));
+            State::Merged => {
+                let building_id = sim::place_building(ctx.sim, node.building.to_building()).ok()?;
+
+                let node_end_pos = node.end_pos;
+                let (_, stats) =
+                    find_connection_around(ctx, node_id, building_id, node_end_pos, search_depth)
+                        .expect("this path to be merged");
                 cmp_and_set(&mut best, stats);
+
+                sim::remove_building(ctx.sim, building_id);
             }
             State::Stopped => {
                 let end_pos = node.end_pos;
@@ -399,7 +405,7 @@ fn place_mine(
     sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Mine(mine);
-    let node = ConnectionTreeNode::new(building, end_pos, state);
+    let node = ConnectionTreeNode::new(building, start_pos, end_pos, state);
     ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
@@ -421,40 +427,7 @@ fn place_children_connectors(
     }
 
     // check if we're already connected to another path leading to the factory
-    if let Some(s) = find_connection_at(
-        ctx,
-        parent_id,
-        connector_id,
-        start_pos + (-1, 0),
-        search_depth,
-    ) {
-        return s;
-    }
-    if let Some(s) = find_connection_at(
-        ctx,
-        parent_id,
-        connector_id,
-        start_pos + (1, 0),
-        search_depth,
-    ) {
-        return s;
-    }
-    if let Some(s) = find_connection_at(
-        ctx,
-        parent_id,
-        connector_id,
-        start_pos + (0, -1),
-        search_depth,
-    ) {
-        return s;
-    }
-    if let Some(s) = find_connection_at(
-        ctx,
-        parent_id,
-        connector_id,
-        start_pos + (0, 1),
-        search_depth,
-    ) {
+    if let Some(s) = find_connection_around(ctx, parent_id, connector_id, start_pos, search_depth) {
         return s;
     }
 
@@ -478,20 +451,13 @@ fn place_children_connectors(
     let mut best = None;
 
     #[rustfmt::skip]
-    let stats = place_connectors(ctx, start_pos + (-1, 0), children_id, &mut len, search_depth);
-    cmp_and_set(&mut best, stats);
-
+    place_connectors(ctx, start_pos + (-1, 0), children_id, &mut len, &mut best, search_depth);
     #[rustfmt::skip]
-    let stats = place_connectors(ctx, start_pos + (1, 0), children_id, &mut len, search_depth);
-    cmp_and_set(&mut best, stats);
-
+    place_connectors(ctx, start_pos + (1, 0), children_id, &mut len, &mut best, search_depth);
     #[rustfmt::skip]
-    let stats = place_connectors(ctx, start_pos + (0, 1), children_id, &mut len, search_depth);
-    cmp_and_set(&mut best, stats);
-
+    place_connectors(ctx, start_pos + (0, 1), children_id, &mut len, &mut best, search_depth);
     #[rustfmt::skip]
-    let stats = place_connectors(ctx, start_pos + (0, -1), children_id, &mut len, search_depth);
-    cmp_and_set(&mut best, stats);
+    place_connectors(ctx, start_pos + (0, -1), children_id, &mut len, &mut best, search_depth);
 
     let state = State::Children {
         start: children_id,
@@ -499,6 +465,54 @@ fn place_children_connectors(
     };
 
     (state, best)
+}
+
+#[inline(always)]
+fn find_connection_around(
+    ctx: &Context,
+    parent_id: NodeId,
+    connector_id: Id,
+    start_pos: Pos,
+    search_depth: u8,
+) -> Option<(State, Option<(NodeId, PathStats)>)> {
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (-1, 0),
+        search_depth,
+    ) {
+        return Some(s);
+    }
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (1, 0),
+        search_depth,
+    ) {
+        return Some(s);
+    }
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (0, -1),
+        search_depth,
+    ) {
+        return Some(s);
+    }
+    if let Some(s) = find_connection_at(
+        ctx,
+        parent_id,
+        connector_id,
+        start_pos + (0, 1),
+        search_depth,
+    ) {
+        return Some(s);
+    }
+
+    None
 }
 
 #[inline(always)]
@@ -511,14 +525,8 @@ fn find_connection_at(
 ) -> Option<(State, Option<(NodeId, PathStats)>)> {
     if let Some(Some(cell)) = ctx.sim.board.get(pos) {
         if cell.id != connector_id && cell.kind == CellKind::Input {
-            if let Some(path_len) = find_connection(ctx, cell.id) {
-                // HACK: rather than calculating some approximate dist consider adding another
-                // value to PathStats
-                let dist = path_len_dist_score(path_len);
-                return Some((
-                    State::Merged(path_len),
-                    Some((parent_id, PathStats::new(dist, search_depth))),
-                ));
+            if let Some(s) = find_connection(ctx, parent_id, connector_id, cell.id, search_depth) {
+                return Some(s);
             }
         }
     }
@@ -527,11 +535,23 @@ fn find_connection_at(
 }
 
 #[inline(always)]
-fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
+fn find_connection(
+    ctx: &Context,
+    parent_id: NodeId,
+    connector_id: Id,
+    mut current_id: Id,
+    mut search_depth: u8,
+) -> Option<(State, Option<(NodeId, PathStats)>)> {
     let mut path = SmallVec::<[_; 15]>::new();
+    let mut last_search_node = connector_id;
 
     'path: loop {
         path.push(current_id);
+
+        if search_depth > 0 {
+            last_search_node = current_id;
+            search_depth -= 1;
+        }
 
         for conn in ctx.sim.connections.iter() {
             if conn.output_id == current_id {
@@ -543,7 +563,56 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
                 current_id = conn.input_id;
 
                 if current_id == ctx.factory_id {
-                    return Some(path.len() as u16);
+                    let path_len = path.len() as u16;
+                    let last_building = &ctx.sim.buildings[last_search_node];
+                    let mut dist = match last_building {
+                        Building::Deposit(_) => unreachable!(),
+                        Building::Obstacle(_) => unreachable!(),
+                        Building::Mine(mine) => {
+                            let pos = mine.pos
+                                + match mine.rotation {
+                                    Rotation::Right => (2, 1),
+                                    Rotation::Down => (0, 2),
+                                    Rotation::Left => (-1, 0),
+                                    Rotation::Up => (1, -1),
+                                };
+                            ctx.distance_map[pos].expect("this field to be valid")
+                        }
+                        Building::Conveyor(conveyor) => {
+                            let pos = conveyor.pos
+                                + if conveyor.big {
+                                    match conveyor.rotation {
+                                        Rotation::Right => (2, 0),
+                                        Rotation::Down => (0, 2),
+                                        Rotation::Left => (-1, 0),
+                                        Rotation::Up => (0, -1),
+                                    }
+                                } else {
+                                    match conveyor.rotation {
+                                        Rotation::Right => (1, 0),
+                                        Rotation::Down => (0, 1),
+                                        Rotation::Left => (-1, 0),
+                                        Rotation::Up => (0, -1),
+                                    }
+                                };
+                            ctx.distance_map[pos].expect("this field to be valid")
+                        }
+                        Building::Combiner(combiner) => {
+                            let pos = combiner.pos
+                                + match combiner.rotation {
+                                    Rotation::Right => (1, 0),
+                                    Rotation::Down => (0, 1),
+                                    Rotation::Left => (-1, 0),
+                                    Rotation::Up => (0, -1),
+                                };
+                            ctx.distance_map[pos].expect("this field to be valid")
+                        }
+                        Building::Factory(_) => 0,
+                    };
+                    return Some((
+                        State::Merged,
+                        Some((parent_id, PathStats::new(dist, search_depth))),
+                    ));
                 }
 
                 continue 'path;
@@ -555,11 +624,6 @@ fn find_connection(ctx: &Context, mut current_id: Id) -> Option<u16> {
     }
 }
 
-#[inline(always)]
-fn path_len_dist_score(path_len: u16) -> u16 {
-    3 * path_len + 3
-}
-
 /// Place conveyors or combiners
 #[rustfmt::skip]
 #[inline(always)]
@@ -568,60 +632,57 @@ fn place_connectors(
     start_pos: Pos,
     children_id: ChildrenId,
     len: &mut u16,
+    best: &mut Option<(NodeId, PathStats)>,
     search_depth: u8,
-) -> Option<(NodeId, PathStats)> {
-    let mut best = None;
-
+) {
     // small conveyors
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (2,  0), false);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (0,  1), (0,  2), false);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-1, 0), (-2, 0), false);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (0, -1), (0, -2), false);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
 
     // big conveyors
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (3,  0), true);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Down,  (0,  1), (0,  3), true);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Left,  (-2, 0), (-3, 0), true);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_conveyor(ctx, start_pos, children_id, len, search_depth, Rotation::Up,    (0, -2), (0, -3), true);
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
 
     // combiners
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  1), (2,  1));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1,  0), (2,  0));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Right, (1, -1), (2, -1));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
 
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (1,  1), (1,  2));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (0,  1), (0,  2));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Down, (-1, 1), (-1, 2));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
 
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1,  1), (-2,  1));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1,  0), (-2,  0));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Left, (-1, -1), (-2, -1));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
 
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (1,  -1), (1,  -2));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (0,  -1), (0,  -2));
-    cmp_and_set(&mut best, stats);
+    cmp_and_set(best, stats);
     let stats = place_combiner(ctx, start_pos, children_id, len, search_depth, Rotation::Up, (-1, -1), (-1, -2));
-    cmp_and_set(&mut best, stats);
-
-    best
+    cmp_and_set(best, stats);
 }
 
 fn place_conveyor(
@@ -648,7 +709,7 @@ fn place_conveyor(
     sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Conveyor(conveyor);
-    let node = ConnectionTreeNode::new(building, end_pos, state);
+    let node = ConnectionTreeNode::new(building, start_pos, end_pos, state);
     ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
@@ -677,7 +738,7 @@ fn place_combiner(
     sim::remove_building(ctx.sim, building_id);
 
     let building = ConnectionBuilding::Combiner(combiner);
-    let node = ConnectionTreeNode::new(building, end_pos, state);
+    let node = ConnectionTreeNode::new(building, start_pos, end_pos, state);
     ctx.tree[node_id] = node;
 
     stats.map(|(_, s)| (node_id, s))
