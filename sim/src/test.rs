@@ -507,7 +507,7 @@ fn run_002_solution_002() {
 
 #[test]
 fn reached_score_at_turn_9() {
-    let input = std::fs::read_to_string("../tasks/005/task.json").unwrap();
+    let input = std::fs::read_to_string("../tests/001/test.json").unwrap();
     let task: dto::Task = serde_json::from_str(&input).unwrap();
     let sim = Sim::try_from(&task).unwrap();
 
