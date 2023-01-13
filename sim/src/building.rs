@@ -102,7 +102,7 @@ pub enum Building {
     Factory(Factory),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Deposit {
     pub pos: Pos,
     pub width: u8,
@@ -125,7 +125,7 @@ impl Deposit {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Obstacle {
     pub pos: Pos,
     pub width: u8,
@@ -157,7 +157,7 @@ impl Mine {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Conveyor {
     pub pos: Pos,
     pub rotation: Rotation,
@@ -174,7 +174,7 @@ impl Conveyor {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Combiner {
     pub pos: Pos,
     pub rotation: Rotation,
@@ -189,7 +189,7 @@ impl Combiner {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Factory {
     pub pos: Pos,
     pub product_type: ProductType,

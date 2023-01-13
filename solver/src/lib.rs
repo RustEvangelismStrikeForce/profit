@@ -229,6 +229,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
 
         // TODO: calculate search depth dynamically based on some heuristic using time and board size
         let search_depth = 2;
+        let factory_positions = 100;
         let mut current_sim = sim.clone();
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations
@@ -237,7 +238,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
             let mut solutions = product_stats
                 .factory_stats
                 .iter()
-                .take(100)
+                .take(factory_positions)
                 .filter_map(|factory_stats| {
                     current_sim.clone_from(sim);
 
@@ -265,6 +266,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                 println!("{:?}\n{:?}", s.board, r);
             }
 
+            // FIX
             return solutions.pop().ok_or(crate::Error::NoSolution);
         }
     }

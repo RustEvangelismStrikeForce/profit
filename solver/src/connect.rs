@@ -101,9 +101,9 @@ enum ConnectionBuilding {
 impl ConnectionBuilding {
     fn to_building(&self) -> Building {
         match self {
-            ConnectionBuilding::Mine(m) => Building::Mine(m.clone()),
-            ConnectionBuilding::Conveyor(c) => Building::Conveyor(c.clone()),
-            ConnectionBuilding::Combiner(c) => Building::Combiner(c.clone()),
+            ConnectionBuilding::Mine(m) => Building::Mine(*m),
+            ConnectionBuilding::Conveyor(c) => Building::Conveyor(*c),
+            ConnectionBuilding::Combiner(c) => Building::Combiner(*c),
         }
     }
 }
@@ -395,7 +395,7 @@ fn place_mine(
     let end_pos = start_pos + end_offset;
     let end_dist = ctx.distance_map.get(end_pos)??;
     let mine = Mine::new(start_pos + pos_offset, rotation);
-    let building_id = sim::place_building(ctx.sim, Building::Mine(mine.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Mine(mine)).ok()?;
 
     let node_id = increment_id(children_id, len);
 
@@ -563,9 +563,8 @@ fn find_connection(
                 current_id = conn.input_id;
 
                 if current_id == ctx.factory_id {
-                    let path_len = path.len() as u16;
                     let last_building = &ctx.sim.buildings[last_search_node];
-                    let mut dist = match last_building {
+                    let dist = match last_building {
                         Building::Deposit(_) => unreachable!(),
                         Building::Obstacle(_) => unreachable!(),
                         Building::Mine(mine) => {
@@ -699,7 +698,7 @@ fn place_conveyor(
     let end_pos = start_pos + end_offset;
     let end_dist = ctx.distance_map.get(end_pos).flatten()?;
     let conveyor = Conveyor::new(start_pos + pos_offset, rotation, big);
-    let building_id = sim::place_building(ctx.sim, Building::Conveyor(conveyor.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Conveyor(conveyor)).ok()?;
 
     let node_id = increment_id(children_id, len);
 
@@ -728,7 +727,7 @@ fn place_combiner(
     let end_pos = start_pos + end_offset;
     let end_dist = ctx.distance_map.get(end_pos).flatten()?;
     let combiner = Combiner::new(start_pos + pos_offset, rotation);
-    let building_id = sim::place_building(ctx.sim, Building::Combiner(combiner.clone())).ok()?;
+    let building_id = sim::place_building(ctx.sim, Building::Combiner(combiner)).ok()?;
 
     let node_id = increment_id(children_id, len);
 
