@@ -5,6 +5,12 @@ members = [
     "cli",
 ]
 
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
+panic = "abort"
+
 [workspace.dependencies]
 sim = { package = "profit_sim", path = "sim" }
 solver = { package = "profit_solver", path = "solver" }
