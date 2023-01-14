@@ -1,6 +1,10 @@
+use std::time::Instant;
+
 use sim::{dto, Sim};
 
 fn main() {
+    let start = Instant::now();
+
     let stdin = std::io::stdin();
     let mut input = String::new();
     stdin.read_line(&mut input).unwrap();
@@ -9,7 +13,7 @@ fn main() {
     let sim = Sim::try_from(&task).unwrap();
     println!("{sim:?}");
 
-    match solver::solve(&sim) {
+    match solver::solve(&sim, start) {
         Err(e) => println!("{e}"),
         Ok((sim, _)) => {
             println!("----------------------------------------");

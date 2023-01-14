@@ -274,13 +274,19 @@ pub(crate) fn connect_deposits_and_factory(
                 let new = sim::run(&sim);
                 if let Some((_, last)) = runs.last() {
                     // maybe don't break immediately
-                    if &new < last {
+                    if &new <= last {
                         non_improvements += 1;
+                    } else {
+                        non_improvements = 0;
                     }
-                    if non_improvements == 12 {
+                    if non_improvements == 5 {
                         break;
                     }
                 }
+                print!("\x1b[1;1H\x1B[2J");
+                println!("{:?}", sim.board);
+                println!("{new:?}");
+
                 runs.push((sim, new));
             }
             Err(_) => {

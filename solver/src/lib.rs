@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, SimRun, FACTORY_SIZE};
 
 use connect::*;
@@ -52,7 +54,7 @@ struct Score {
 }
 
 // TODO: consider using a `bumpalo` to limit allocations
-pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
+pub fn solve(sim: &Sim, start: Instant) -> crate::Result<(Sim, SimRun)> {
     let regions = find_regions(sim);
     let deposit_distance_maps = map_deposit_distances(sim);
 
@@ -67,11 +69,13 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
             .enumerate()
             .filter_map(|(i, product)| {
                 if product.points == 0 {
+                    println!("0 points");
                     return None;
                 }
                 // filter out products that require more or different resources then there are in the
                 // region
                 if !available_resources.has_at_least(&product.resources) {
+                    println!("not enough resources");
                     return None;
                 }
 
@@ -88,6 +92,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
 
                         let needed_resources = product.resources[resource_type];
                         if needed_resources == 0 {
+                            println!("depoisit not needed {id:?}");
                             return None;
                         }
 
@@ -104,6 +109,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                     .cells
                     .iter()
                     .filter_map(|&pos| {
+                        println!("---- {pos} ----");
                         // check if a factory could even be placed here
                         for y in 0..FACTORY_SIZE {
                             for x in 0..FACTORY_SIZE {
@@ -112,6 +118,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                                 let cell = sim.board.get(p)?;
                                 // cell is non-empty
                                 if cell.is_some() {
+                                    println!("out of bounds");
                                     return None;
                                 }
                             }
@@ -158,6 +165,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                             sum.weighted += weighted;
 
                             if dist == 0.0 {
+                                println!("to close to deposit {:?}", ds.id);
                                 return None;
                             } else if (dist as u32 / 4) + 2 < sim.turns {
                                 deposits_in_reach.push(deposit_idx);
@@ -169,6 +177,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                         // Filter out factory positions that can't reach all necessary resources
                         // in time
                         if !resources_in_reach.has_at_least(&product.resources) {
+                            println!("resources not reachable in available turns");
                             return None;
                         }
 
@@ -237,8 +246,9 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
             let mut solutions = product_stats
                 .factory_stats
                 .iter()
+                .enumerate()
                 .take(factory_positions)
-                .filter_map(|factory_stats| {
+                .filter_map(|(i, factory_stats)| {
                     current_sim.clone_from(sim);
 
                     println!(
@@ -256,17 +266,18 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                         search_depth,
                     )
                     .ok()
+                    .map(|v| (i, v))
                 })
                 .collect::<Vec<_>>();
 
-            solutions.sort_by_key(|(_, r)| r.clone());
+            solutions.sort_by_key(|(_, (_, r))| r.clone());
 
-            for (s, r) in &solutions {
-                println!("{:?}\n{:?}", s.board, r);
+            for (i, (s, r)) in &solutions {
+                println!("{:?}\n{i:3} {:?}", s.board, r);
             }
 
             // FIX
-            return solutions.pop().ok_or(crate::Error::NoSolution);
+            return solutions.pop().map(|(_, s)| s).ok_or(crate::Error::NoSolution);
         }
     }
 
