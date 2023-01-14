@@ -164,9 +164,7 @@ impl TryFrom<u8> for ResourceType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Solution {
-    pub objects: Vec<SolutionObject>,
-}
+pub struct Solution(Vec<SolutionObject>);
 
 impl From<&Sim> for Solution {
     fn from(sim: &Sim) -> Self {
@@ -175,7 +173,7 @@ impl From<&Sim> for Solution {
             .iter()
             .filter_map(|(_, b)| SolutionObject::try_from(b).ok())
             .collect();
-        Solution { objects }
+        Solution(objects)
     }
 }
 

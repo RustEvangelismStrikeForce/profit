@@ -12,6 +12,7 @@ fn main() {
     match solver::solve(&sim) {
         Err(e) => println!("{e}"),
         Ok((sim, _)) => {
+            println!("----------------------------------------");
             let solution = dto::Solution::from(&sim);
             let mut stdout = std::io::stdout();
             serde_json::to_writer(&mut stdout, &solution).expect("at this point we're fucked");
