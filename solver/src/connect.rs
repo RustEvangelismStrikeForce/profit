@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
 
 use sim::{
-    Building, CellKind, Combiner, Conveyor, Factory, Id, Mine, Pos, Rotation, Sim, SimRun,
-    FACTORY_SIZE,
+    Building, CellKind, Combiner, Conveyor, Factory, Id, Mine, Pos, Rotation, Sim, FACTORY_SIZE,
 };
 use smallvec::SmallVec;
 
+use crate::combine::ScoredSolution;
 use crate::{map_distances, DistanceMap, FactoryStats, ProductStats};
 
 #[cfg(test)]
@@ -154,7 +154,7 @@ pub(crate) fn connect_deposits_and_factory(
     product_stats: &ProductStats,
     factory_stats: &FactoryStats,
     search_depth: u8,
-) -> crate::Result<(Sim, SimRun)> {
+) -> crate::Result<ScoredSolution> {
     let product_type = product_stats.product_type;
     let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
     let factory_id = sim::place_building(sim, factory)?;
@@ -168,7 +168,7 @@ pub(crate) fn connect_deposits_and_factory(
 
     let mut non_improvements = 0;
     let mut errors = 0;
-    let mut runs = Vec::new();
+    let mut runs: Vec<ScoredSolution> = Vec::new();
     // TODO: smarter selection order of deposits to connect
     for (i, d) in factory_stats.deposits_in_reach.iter().cycle().enumerate() {
         ctx.tree = ConnectionTree::new();
@@ -272,21 +272,27 @@ pub(crate) fn connect_deposits_and_factory(
         match res {
             Ok(sim) => {
                 let new = sim::run(&sim);
-                if let Some((_, last)) = runs.last() {
+                if let Some(last) = runs.last() {
                     // maybe don't break immediately
-                    if &new < last {
+                    if new <= last.run {
                         non_improvements += 1;
+                    } else {
+                        non_improvements = 0;
                     }
-                    if non_improvements == 12 {
+                    if non_improvements == 5 {
                         break;
                     }
                 }
-                runs.push((sim, new));
+                // print!("\x1b[1;1H\x1B[2J");
+                // println!("{:?}", sim.board);
+                // println!("{new:?}");
+
+                runs.push(ScoredSolution { sim, run: new });
             }
             Err(_) => {
                 errors += 1;
-                if let Some((last_sim, _)) = runs.last() {
-                    ctx.sim.clone_from(last_sim);
+                if let Some(last) = runs.last() {
+                    ctx.sim.clone_from(&last.sim);
                 }
                 if errors == factory_stats.deposits_in_reach.len() {
                     break;
@@ -295,7 +301,9 @@ pub(crate) fn connect_deposits_and_factory(
         }
     }
 
-    runs.pop().ok_or(crate::Error::NoSolution)
+    runs.into_iter()
+        .max_by_key(|s| s.run.clone())
+        .ok_or(crate::Error::NoSolution)
 }
 
 fn continue_subtree(

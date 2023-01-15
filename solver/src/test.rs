@@ -5,7 +5,7 @@ use sim::{dto, place_building, pos, Board, Building, Id, Obstacle, Products, Sim
 use crate::{find_regions, Regions};
 
 const TURNS: u32 = 100;
-const TIME: u32 = 100;
+const TIME: f32 = 100.0;
 
 #[test]
 fn find_two_regions() {

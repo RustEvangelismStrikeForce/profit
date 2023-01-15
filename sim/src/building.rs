@@ -5,18 +5,18 @@ use crate::{Board, Connection, Id, Pos, Rotation};
 pub const RESOURCE_TYPES: usize = 8;
 pub const PRODUCT_TYPES: usize = 8;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sim {
     pub products: Products,
     pub buildings: Buildings,
     pub board: Board,
     pub connections: Vec<Connection>,
     pub turns: u32,
-    pub time: u32,
+    pub time: f32,
 }
 
 impl Sim {
-    pub fn new(products: Products, board: Board, turns: u32, time: u32) -> Self {
+    pub fn new(products: Products, board: Board, turns: u32, time: f32) -> Self {
         Self {
             products,
             buildings: Buildings::default(),

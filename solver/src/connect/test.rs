@@ -17,7 +17,7 @@ fn path_stats() {
 fn find_conveyor_connection_around() {
     let board = Board::new(20, 20);
     let products = Products::default();
-    let mut sim = Sim::new(products, board, 20, 20);
+    let mut sim = Sim::new(products, board, 20, 20.0);
 
     let factory = Factory::new((4, 2), ProductType::Type0);
     let factory_id = sim::place_building(&mut sim, Building::Factory(factory)).unwrap();
@@ -42,5 +42,8 @@ fn find_conveyor_connection_around() {
         find_connection_around(&ctx, parent_id, conveyor_id, Pos::new(12, 3), search_depth)
             .unwrap();
     assert_eq!(state, State::Merged);
-    assert_eq!(stats, Some((parent_id, PathStats::new(0, search_depth - 1))));
+    assert_eq!(
+        stats,
+        Some((parent_id, PathStats::new(0, search_depth - 1)))
+    );
 }

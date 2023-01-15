@@ -5,14 +5,14 @@ use crate::{
     Mine, Obstacle, ProductType, Products, ResourceType, Resources, Rotation, Sim,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     pub width: i8,
     pub height: i8,
     pub objects: Vec<TaskObject>,
     pub products: Vec<Product>,
     pub turns: u32,
-    pub time: u32,
+    pub time: f32,
 }
 
 impl TryFrom<&Task> for Sim {

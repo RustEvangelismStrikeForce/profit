@@ -1,16 +1,27 @@
-use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, SimRun, FACTORY_SIZE};
+use std::collections::HashMap;
+use std::sync::{mpsc, Mutex};
+use std::thread::{self, ScopedJoinHandle};
+use std::time::Instant;
 
+use sim::{Id, Pos, ProductType, ResourceType, Resources, Sim, Building, FACTORY_SIZE};
+
+use combine::*;
 use connect::*;
 pub use distance::*;
 pub use error::*;
 pub use region::*;
 
+mod combine;
 mod connect;
 mod distance;
 mod error;
 mod region;
 #[cfg(test)]
 mod test;
+
+struct RegionStats {
+    product_stats: Vec<ProductStats>,
+}
 
 struct ProductStats {
     product_type: ProductType,
@@ -52,12 +63,35 @@ struct Score {
     max_products: f32,
 }
 
-// TODO: consider using a `bumpalo` to limit allocations
-pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
+pub fn solve<'env, 'scope>(
+    sim: &'env Sim,
+    scope: &'scope thread::Scope<'scope, 'env>,
+    best_solution: &'scope Mutex<Option<ScoredSolution>>,
+    start: Instant,
+) -> (ScopedJoinHandle<'scope, ()>, ScopedJoinHandle<'scope, ()>) {
     let regions = find_regions(sim);
     let deposit_distance_maps = map_deposit_distances(sim);
+    let region_stats = regional_factory_position_stats(sim, regions, deposit_distance_maps);
 
-    for region in regions.iter() {
+    let (sender, receiver) = mpsc::channel();
+    let num_regions = region_stats.len();
+
+    let connect_handle = scope.spawn(move || {
+        regional_connections(sim, &region_stats, sender, start);
+    });
+    let combine_handle = scope.spawn(move || {
+        combine::combine_solutions(receiver, best_solution, num_regions);
+    });
+
+    (combine_handle, connect_handle)
+}
+
+fn regional_factory_position_stats(
+    sim: &Sim,
+    regions: Regions,
+    deposit_distance_maps: HashMap<Id, DistanceMap>,
+) -> Vec<RegionStats> {
+    regions.iter().filter_map(|region| {
         let mut available_resources = Resources::default();
         for id in region.deposits.iter() {
             let Building::Deposit(deposit) = &sim.buildings[*id] else { continue };
@@ -229,57 +263,83 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                 Some(ProductStats { product_type, deposit_stats, factory_stats })
             }).collect::<Vec<_>>();
 
-        for (id, m) in deposit_distance_maps.iter() {
-            println!("{id:?} {m:?}");
-        }
-        println!("------------------------------");
-        println!("{:?}", region.deposits);
-        println!("------------------------------");
+        (!product_stats.is_empty()).then_some(RegionStats { product_stats })
+    })
+    .collect()
+}
 
-        // TODO: calculate search depth dynamically based on some heuristic using time and board size
-        let search_depth = 2;
-        let factory_positions = 100;
-        let mut current_sim = sim.clone();
+fn regional_connections(
+    sim: &Sim,
+    region_stats: &[RegionStats],
+    sender: mpsc::Sender<CombineMessage>,
+    start: Instant,
+) {
+    // TODO: calculate search depth dynamically based on some heuristic using time and board size
+    let search_depth = 2;
+    let mut current_sim = sim.clone();
+    let mut product_iter_indices = vec![0; region_stats.len()];
+
+    let mut region_iters = region_stats
+        .iter()
+        .map(|r| {
+            r
+                .product_stats
+                .iter()
+                .map(|p| (p, p.factory_stats.iter()))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut i = 0;
+    loop {
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations
-        // FIX
-        for product_stats in product_stats.iter() {
-            let mut solutions = product_stats
-                .factory_stats
-                .iter()
-                .take(factory_positions)
-                .filter_map(|factory_stats| {
-                    current_sim.clone_from(sim);
+        let mut all_done = true;
+        for (region_idx, region_iter) in region_iters.iter_mut().enumerate() {
+            let Some((product_stats, factory_stats_iter)) = region_iter.get_mut(product_iter_indices[region_idx]) else { continue };
+            let Some(factory_stats) = factory_stats_iter.next() else {
+                // TODO: try out different products
+                product_iter_indices[region_idx] += 1;
+                continue;
+            };
 
-                    println!(
-                        "{}: {:16}, {:16}, {:16} {:16}",
-                        factory_stats.pos,
-                        factory_stats.score.dist,
-                        factory_stats.score.middle,
-                        factory_stats.score.weighted,
-                        factory_stats.score.max_products
-                    );
+            all_done = false;
+            
+            println!(
+                "{i:4} {}: {:16}, {:16}, {:16} {:16}",
+                factory_stats.pos,
+                factory_stats.score.dist,
+                factory_stats.score.middle,
+                factory_stats.score.weighted,
+                factory_stats.score.max_products
+            );
+            i += 1;
+            
+            current_sim.clone_from(sim);
 
-                    connect_deposits_and_factory(
-                        &mut current_sim,
-                        product_stats,
-                        factory_stats,
-                        search_depth,
-                    )
-                    .ok()
-                })
-                .collect::<Vec<_>>();
+            let solution = connect_deposits_and_factory(
+                &mut current_sim,
+                product_stats,
+                factory_stats,
+                search_depth,
+            );
 
-            solutions.sort_by_key(|(_, r)| r.clone());
-
-            for (s, r) in &solutions {
-                println!("{:?}\n{:?}", s.board, r);
+            if let Ok(solution) = solution {
+                sender
+                    .send(CombineMessage::Some((region_idx, solution)))
+                    .expect("a receiver");
             }
+        }
 
-            // FIX
-            return solutions.pop().ok_or(crate::Error::NoSolution);
+        let now = Instant::now();
+        if (now - start).as_secs_f32() > sim.time {
+            break;
+        }
+
+        if all_done {
+            break;
         }
     }
 
-    Err(crate::Error::NoSolution)
+    sender.send(CombineMessage::Done).expect("a receiver");
 }

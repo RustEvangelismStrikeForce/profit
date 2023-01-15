@@ -4,7 +4,7 @@ use crate::dto::{self, TaskObject};
 use crate::*;
 
 const TURNS: u32 = 100;
-const TIME: u32 = 100;
+const TIME: f32 = 100.0;
 
 #[test]
 fn place_mine_rotated_up() {
@@ -237,7 +237,7 @@ fn deserialize_task_001() {
                 points: 10
             },],
             turns: 50,
-            time: 300,
+            time: 300.0,
         }
     )
 }
@@ -251,7 +251,7 @@ fn convert_task_001_to_sim() {
     let expected = {
         let mut products = Products::default();
         products[ProductType::Type0] = Product::new(Resources::new([3, 3, 3, 0, 0, 0, 0, 0]), 10);
-        let mut sim = Sim::new(products, Board::new(30, 20), 50, 300);
+        let mut sim = Sim::new(products, Board::new(30, 20), 50, 300.0);
 
         let building = Building::Deposit(Deposit::new((1, 1), 5, 5, ResourceType::Type0));
         place_building(&mut sim, building).unwrap();
