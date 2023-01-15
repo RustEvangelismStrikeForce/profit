@@ -145,16 +145,10 @@ fn add_solution_buildings(sim: &mut Sim, buildings: &Buildings) -> sim::Result<(
 fn cmp_and_set(best_solution: &mut Option<ScoredSolution>, sim: &Sim, run: SimRun) {
     match best_solution {
         None => {
-            print!("\x1b[1;1H\x1B[2J");
-            println!("{:?}", sim.board);
-            println!("{run:?}");
             *best_solution = Some(ScoredSolution::new(sim.clone(), run))
         }
         Some(best) => {
             if run > best.run {
-                print!("\x1b[1;1H\x1B[2J");
-                println!("{:?}", sim.board);
-                println!("{run:?}");
                 *best_solution = Some(ScoredSolution::new(sim.clone(), run));
             }
         }

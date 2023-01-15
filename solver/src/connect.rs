@@ -163,7 +163,6 @@ pub(crate) fn connect_deposits_and_factory(
 
     let mut runs: Vec<ScoredSolution> = Vec::new();
     for offset in 0..factory_stats.deposits_in_reach.len() {
-        println!("{offset}");
         let mut current_sim = sim.clone();
         let product_type = product_stats.product_type;
         let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
@@ -289,9 +288,6 @@ pub(crate) fn connect_deposits_and_factory(
                             break;
                         }
                     }
-                    // print!("\x1b[1;1H\x1B[2J");
-                    println!("{:?}", sim.board);
-                    println!("{new:?}");
 
                     runs.push(ScoredSolution { sim, run: new });
                 }

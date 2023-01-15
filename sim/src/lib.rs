@@ -125,14 +125,14 @@ pub fn run(sim: &Sim) -> SimRun {
             let ResourceContainer::Factory(product_type, resources) = c else { continue };
             let product = &sim.products[*product_type];
             if resources.has_at_least(&product.resources) {
-                let count = (*resources / product.resources)
+                let num_products = (*resources / product.resources)
                     .iter()
                     .min()
                     .unwrap_or_default();
 
-                if count > 0 {
-                    *resources -= product.resources * Resources::new([count; 8]);
-                    points += product.points * count as u32;
+                if num_products > 0 {
+                    *resources -= product.resources * Resources::new([num_products; 8]);
+                    points += product.points * num_products as u32;
                     at_turn = turn + 1;
                     unchanged = false;
                 }

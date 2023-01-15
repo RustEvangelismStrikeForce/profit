@@ -25,6 +25,7 @@ struct RegionStats {
 
 struct ProductStats {
     product_type: ProductType,
+    max_points: u32,
     deposit_stats: Vec<DepositStats>,
     factory_stats: Vec<FactoryStats>,
 }
@@ -71,7 +72,7 @@ pub fn solve<'env, 'scope>(
 ) -> (ScopedJoinHandle<'scope, ()>, ScopedJoinHandle<'scope, ()>) {
     let regions = find_regions(sim);
     let deposit_distance_maps = map_deposit_distances(sim);
-    let region_stats = regional_factory_position_stats(sim, regions, deposit_distance_maps);
+    let region_stats = rank_regional_factory_positions(sim, regions, deposit_distance_maps);
 
     let (sender, receiver) = mpsc::channel();
     let num_regions = region_stats.len();
@@ -86,7 +87,7 @@ pub fn solve<'env, 'scope>(
     (combine_handle, connect_handle)
 }
 
-fn regional_factory_position_stats(
+fn rank_regional_factory_positions(
     sim: &Sim,
     regions: Regions,
     deposit_distance_maps: HashMap<Id, DistanceMap>,
@@ -98,7 +99,7 @@ fn regional_factory_position_stats(
             available_resources.values[deposit.resource_type as usize] += deposit.resources();
         }
 
-        let product_stats = sim.products.iter()
+        let mut product_stats = sim.products.iter()
             .enumerate()
             .filter_map(|(i, product)| {
                 if product.points == 0 {
@@ -109,6 +110,14 @@ fn regional_factory_position_stats(
                 if !available_resources.has_at_least(&product.resources) {
                     return None;
                 }
+
+                let max_points = {
+                    let num_products = (available_resources / product.resources)
+                        .iter()
+                        .min()
+                        .unwrap_or_default();
+                    product.points * num_products as u32
+                };
 
                 let product_type = ProductType::try_from(i as u8).unwrap();
 
@@ -260,8 +269,10 @@ fn regional_factory_position_stats(
                     score2.total_cmp(&score1)
                 });
 
-                Some(ProductStats { product_type, deposit_stats, factory_stats })
+                Some(ProductStats { product_type, max_points, deposit_stats, factory_stats })
             }).collect::<Vec<_>>();
+
+        product_stats.sort_by(|p1, p2| p2.max_points.cmp(&p1.max_points));
 
         (!product_stats.is_empty()).then_some(RegionStats { product_stats })
     })
@@ -274,68 +285,69 @@ fn regional_connections(
     sender: mpsc::Sender<CombineMessage>,
     start: Instant,
 ) {
-    // TODO: calculate search depth dynamically based on some heuristic using time and board size
-    let search_depth = 2;
-    let mut product_iter_indices = vec![0; region_stats.len()];
+    'outer: for search_depth in 2..=255 {
+        println!("search_depth {search_depth}");
+        let mut product_iter_indices = vec![0; region_stats.len()];
 
-    let mut region_iters = region_stats
-        .iter()
-        .map(|r| {
-            r.product_stats
-                .iter()
-                .map(|p| (p, p.factory_stats.iter()))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+        let mut region_iters = region_stats
+            .iter()
+            .map(|r| {
+                r.product_stats
+                    .iter()
+                    .map(|p| (p, p.factory_stats.iter()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
 
-    let mut i = 0;
-    let mut tree = ConnectionTree::new();
-    loop {
-        // TODO: try out some combinations of factories producing different products and rank those
-        // combinations
-        let mut all_done = true;
-        for (region_idx, region_iter) in region_iters.iter_mut().enumerate() {
-            let Some((product_stats, factory_stats_iter)) = region_iter.get_mut(product_iter_indices[region_idx]) else { continue };
-            let Some(factory_stats) = factory_stats_iter.next() else {
-                // TODO: try out different products
-                product_iter_indices[region_idx] += 1;
-                continue;
-            };
+        let mut i = 0;
+        let mut tree = ConnectionTree::new();
+        loop {
+            // TODO: try out some combinations of factories producing different products and rank those
+            // combinations
+            let mut all_done = true;
+            for (region_idx, region_iter) in region_iters.iter_mut().enumerate() {
+                let Some((product_stats, factory_stats_iter)) = region_iter.get_mut(product_iter_indices[region_idx]) else { continue };
+                all_done = false;
 
-            all_done = false;
+                let Some(factory_stats) = factory_stats_iter.next() else {
+                    // TODO: try out different products
+                    product_iter_indices[region_idx] += 1;
+                    continue;
+                };
 
-            println!(
-                "{i:4} {}: {:16}, {:16}, {:16} {:16}",
-                factory_stats.pos,
-                factory_stats.score.dist,
-                factory_stats.score.middle,
-                factory_stats.score.weighted,
-                factory_stats.score.max_products
-            );
-            i += 1;
+                println!(
+                    "{i:4} {}: {:16}, {:16}, {:16} {:16}",
+                    factory_stats.pos,
+                    factory_stats.score.dist,
+                    factory_stats.score.middle,
+                    factory_stats.score.weighted,
+                    factory_stats.score.max_products
+                );
+                i += 1;
 
-            let solution = connect_deposits_and_factory(
-                &sim,
-                &mut tree,
-                product_stats,
-                factory_stats,
-                search_depth,
-            );
+                let solution = connect_deposits_and_factory(
+                    &sim,
+                    &mut tree,
+                    product_stats,
+                    factory_stats,
+                    search_depth,
+                );
 
-            if let Ok(solution) = solution {
-                sender
-                    .send(CombineMessage::Some((region_idx, solution)))
-                    .expect("a receiver");
+                if let Ok(solution) = solution {
+                    sender
+                        .send(CombineMessage::Some((region_idx, solution)))
+                        .expect("a receiver");
+                }
             }
-        }
 
-        let now = Instant::now();
-        if (now - start).as_secs_f32() > sim.time {
-            break;
-        }
+            if all_done {
+                break;
+            }
 
-        if all_done {
-            break;
+            let now = Instant::now();
+            if (now - start).as_secs_f32() > sim.time {
+                break 'outer;
+            }
         }
     }
 

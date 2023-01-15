@@ -153,8 +153,6 @@ fn two_ingresses_at_one_egress() {
     let building = Building::Mine(Mine::new((1, 3), Rotation::Down));
     let res = place_building(&mut sim, building);
 
-    println!("{:?}", sim.board);
-
     assert_eq!(res, Err(Error::MultipleIngresses(pos(1, 1))));
 }
 
