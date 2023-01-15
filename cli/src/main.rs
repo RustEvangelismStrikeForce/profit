@@ -43,7 +43,8 @@ fn main() {
                 println!("----------------------------------------");
                 let dto_solution = dto::Solution::from(&solution.sim);
                 let mut stdout = std::io::stdout();
-                serde_json::to_writer(&mut stdout, &dto_solution).expect("at this point we're fucked");
+                serde_json::to_writer(&mut stdout, &dto_solution)
+                    .expect("at this point we're fucked");
                 println!("----------------------------------------");
             }
             None => println!("No solution"),

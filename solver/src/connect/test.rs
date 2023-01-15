@@ -23,9 +23,10 @@ fn find_conveyor_connection_around() {
     let factory_id = sim::place_building(&mut sim, Building::Factory(factory)).unwrap();
 
     let distance_map = map_distances(&sim, factory.pos, FACTORY_SIZE, FACTORY_SIZE);
+    let mut tree = ConnectionTree::new();
     let ctx = Context {
         sim: &mut sim,
-        tree: ConnectionTree::new(),
+        tree: &mut tree,
         distance_map,
         factory_id,
     };

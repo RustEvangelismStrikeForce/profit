@@ -3,7 +3,7 @@ use std::sync::{mpsc, Mutex};
 use std::thread::{self, ScopedJoinHandle};
 use std::time::Instant;
 
-use sim::{Id, Pos, ProductType, ResourceType, Resources, Sim, Building, FACTORY_SIZE};
+use sim::{Building, Id, Pos, ProductType, ResourceType, Resources, Sim, FACTORY_SIZE};
 
 use combine::*;
 use connect::*;
@@ -282,8 +282,7 @@ fn regional_connections(
     let mut region_iters = region_stats
         .iter()
         .map(|r| {
-            r
-                .product_stats
+            r.product_stats
                 .iter()
                 .map(|p| (p, p.factory_stats.iter()))
                 .collect::<Vec<_>>()
@@ -305,7 +304,7 @@ fn regional_connections(
             };
 
             all_done = false;
-            
+
             println!(
                 "{i:4} {}: {:16}, {:16}, {:16} {:16}",
                 factory_stats.pos,
@@ -315,7 +314,7 @@ fn regional_connections(
                 factory_stats.score.max_products
             );
             i += 1;
-            
+
             current_sim.clone_from(sim);
 
             let solution = connect_deposits_and_factory(
