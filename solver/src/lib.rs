@@ -104,11 +104,11 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                 let mut factory_stats = region
                     .cells
                     .iter()
-                    .filter_map(|&pos| {
+                    .filter_map(|&factory_pos| {
                         // check if a factory could even be placed here
                         for y in 0..FACTORY_SIZE {
                             for x in 0..FACTORY_SIZE {
-                                let p = pos + (x, y);
+                                let p = factory_pos + (x, y);
                                 // out of bounds
                                 let cell = sim.board.get(p)?;
                                 // cell is non-empty
@@ -128,23 +128,23 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                             // find the distance from the outer border of the factory
                             let mut dist = u16::MAX;
                             for i in 0..FACTORY_SIZE {
-                                let pos = pos + (i, 0);
+                                let pos = factory_pos + (i, 0);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
                             for i in 1..FACTORY_SIZE - 1 {
-                                let pos = pos + (0, i);
+                                let pos = factory_pos + (0, i);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
-                                let pos = pos + (FACTORY_SIZE - 1, i);
+                                let pos = factory_pos + (FACTORY_SIZE - 1, i);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
                             }
                             for i in 0..FACTORY_SIZE {
-                                let pos = pos + (i, FACTORY_SIZE - 1);
+                                let pos = factory_pos + (i, FACTORY_SIZE - 1);
                                 if let Some(Some(d)) = map.get(pos) {
                                     dist = dist.min(d);
                                 }
@@ -189,7 +189,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                             max_products: 1.0 / (max_products + 2.0).ln(),
                         };
 
-                        Some(FactoryStats { pos, score, resources_in_reach, deposits_in_reach })
+                        Some(FactoryStats { pos: factory_pos, score, resources_in_reach, deposits_in_reach })
                     })
                     .collect::<Vec<_>>();
 
