@@ -79,16 +79,13 @@ pub fn combine_solutions(
 
         let current_region_solutions = &mut regional_solutions[region_idx];
         #[allow(irrefutable_let_patterns)]
-        if let Ok(pos) | Err(pos) = current_region_solutions
-            .binary_search(&region_solution)
-            .into()
-        {
+        if let Ok(pos) | Err(pos) = current_region_solutions.binary_search(&region_solution) {
             regional_solutions[region_idx].insert(pos, region_solution);
         }
     }
 }
 
-fn recursive_permutations<'a>(
+fn recursive_permutations(
     sim: &Sim,
     best_solution: &mut Option<ScoredSolution>,
     region_solutions: &[Vec<ScoredSolution>],
@@ -144,9 +141,7 @@ fn add_solution_buildings(sim: &mut Sim, buildings: &Buildings) -> sim::Result<(
 
 fn cmp_and_set(best_solution: &mut Option<ScoredSolution>, sim: &Sim, run: SimRun) {
     match best_solution {
-        None => {
-            *best_solution = Some(ScoredSolution::new(sim.clone(), run))
-        }
+        None => *best_solution = Some(ScoredSolution::new(sim.clone(), run)),
         Some(best) => {
             if run > best.run {
                 *best_solution = Some(ScoredSolution::new(sim.clone(), run));

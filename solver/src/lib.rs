@@ -40,14 +40,12 @@ struct DepositStats {
 struct FactoryStats {
     pos: Pos,
     score: Score,
-    resources_in_reach: Resources,
     /// indices into deposit_stats
     deposits_in_reach: Vec<DepositIdx>,
 }
 
 struct DepositIdx {
     idx: usize,
-    dist: u16,
 }
 
 #[derive(Debug)]
@@ -193,7 +191,7 @@ fn rank_regional_factory_positions(
                                 }
                             }
 
-                            let deposit_idx = DepositIdx { idx, dist };
+                            let deposit_idx = DepositIdx { idx };
                             let dist = dist as f32;
                             let weighted = ds.weight / (dist + 1.0);
 
@@ -232,7 +230,7 @@ fn rank_regional_factory_positions(
                             max_products: 1.0 / (max_products + 2.0).ln(),
                         };
 
-                        Some(FactoryStats { pos: factory_pos, score, resources_in_reach, deposits_in_reach })
+                        Some(FactoryStats { pos: factory_pos, score, deposits_in_reach })
                     })
                     .collect::<Vec<_>>();
 
@@ -326,7 +324,7 @@ fn regional_connections(
                 i += 1;
 
                 let solution = connect_deposits_and_factory(
-                    &sim,
+                    sim,
                     &mut tree,
                     product_stats,
                     factory_stats,
