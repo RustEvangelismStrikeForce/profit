@@ -58,7 +58,7 @@
     \vspace*{1cm}
     \includegraphics[width=0.3\textwidth]{logo.png}\\
   Tobias Schmitz \\ \href{tobias.schmitz@student.uni-siegen.de}{tobias.schmitz@student.uni-siegen.de} \\
-  Maik Romancewicz \\ \href{tobias.schmitz@student.uni-siegen.de}{maik.romancewicz@student.uni-siegen.de} \\
+  Maik Romancewicz \\ \href{maik.romancewicz@student.uni-siegen.de}{maik.romancewicz@student.uni-siegen.de} \\
 }
 \vfill
 
@@ -89,7 +89,8 @@
 %===========================================================
 
 \section{Einleitung}
-Beim InformatiCup 2023 war die Aufgabe, im Rahmen einer rundenbasierten Simulation einen Produktionsprozess zu optimieren. Als Eingabe für das zu entwickelnde Programm erhält man ein 2-dimensionales Feld mit bereits platzierten Ressourcen und Hindernissen, eine Liste von Produkten deren Produktion gewisse Ressourcen benötigt und deren Produktion eine gewisse Punktzahl erzielt als auch ein Rundenlimit in dem die Simulation abläuft. Auf dem besagten Feld gilt es unterschiedliche Bauteile zu platzieren welche Ressourcen abbauen, diese transportieren und schließlich Produkte herstellen um Punkte zu erzielen. Ziel war es ein Programm zu entwickeln welches innerhalb einer vorgegebenen Zeit eine Liste an zu platzierenden Bauteilen generiert welche möglichst viele Punkte erzielt, in möglichst kurzer Zeit.
+Beim InformatiCup 2023 war die Aufgabe, im Rahmen einer rundenbasierten Simulation einen Produktionsprozess zu optimieren. Als Eingabe für das zu entwickelnde Programm erhält man ein 2-dimensionales Feld mit bereits platzierten Deposits und Obstacles, eine Liste von Produkten deren Produktion gewisse Ressourcen (aus den Deposits) benötigt und deren Produktion eine gewisse Punktzahl erzielt als auch ein Rundenlimit in dem die Simulation abläuft. Auf dem besagten Feld gilt es unterschiedliche Bauteile zu platzieren welche Ressourcen abbauen, diese transportieren und schließlich Produkte herstellen um Punkte zu erzielen. Ziel war es ein Programm zu entwickeln welches innerhalb einer vorgegebenen Zeit eine Liste an zu platzierenden Bauteilen generiert welche möglichst viele Punkte erzielt, in möglichst wenigen Runden.
+
 
 \includegraphics[width=\textwidth]{task1.png}
 
@@ -97,30 +98,30 @@ Eine ausführliche Beschreibung der Aufgabe ist auf der Website bzw. im Git Repo
 
 Wir werden in der folgenden Ausarbeitung anhand des obigen Beispiels erklären wie unsere Lösung funktioniert, welche Gedanken wir uns dazu gemacht haben und wie unser Programm letztendlich zu folgender Lösung kommt:
 
+\includegraphics[width=\textwidth]{task1_solution.png}
 % Lösungsbild einfügen
-\newpage
 
 \section{Theoretischer Ansatz}
-Im Laufe des Wettbewerbs hatten wir natürlich zahlreiche unterschiedliche Ideen wie man dieses Problem angehen kann und haben auch einige davon länger verfolgt. Letzten Endes sind wir zum Entschluss gekommen, dass wir die Aufgabenstellung in unterschiedliche Teilaufgaben unterteilen und versuchen diese einzeln anzugehen bevor wir die Erkenntisse die wir aus den Teilaufgaben gewonnen haben zu einer Gesamtlösung zusammenführen. Konkret bedeutet das, dass wir die Aufgabe in folgende Punkte unterteilt haben.
+Im Laufe des Wettbewerbs hatten wir natürlich zahlreiche unterschiedliche Ideen wie man dieses Problem angehen kann und haben auch einige davon länger verfolgt. Letzten Endes sind wir zum Entschluss gekommen, dass wir die Aufgabenstellung in unterschiedliche Teilaufgaben unterteilen und versuchen diese einzeln anzugehen bevor wir die Erkenntisse die wir aus den Teilaufgaben gewonnen haben zu einer Gesamtlösung zusammenführen. Konkret bedeutet das, dass wir die Aufgabe in folgende Punkte unterteilt haben:
 
 \begin{enumerate}
+    \item Produktauswahl treffen
     \item Factory Platzierung
     \item Minen Platzierung
     \item Minen und Fabriken verbinden
 \end{enumerate}
 
-Die Idee hinter dieser Aufteilung war es, dass wir unsere Lösungen soweit Laufzeit-technisch optimieren, dass wir uns nicht auf einzelne Heuristiken verlassen müssen, sondern wir möglichst viele unterschiedliche Konfigurationen der Lösungen von den Teilaufgaben ausprobieren können. Dazu bringen wir die Lösungen der einzelnen Teilaufgaben in eine Rangliste und testen diese dann nacheinander kombiniert mit den Lösungen der anderen Teilaufgaben.
+Die Idee hinter dieser Aufteilung war es, dass wir unsere Lösungen soweit Laufzeit-technisch optimieren, dass wir uns nicht auf einzelne Heuristiken verlassen müssen, sondern wir möglichst viele unterschiedliche Konfigurationen der Lösungen von den Teilaufgaben ausprobieren können. Dazu bringen wir die Lösungen der einzelnen Teilaufgaben in eine Rangliste und testen diese dann nacheinander kombiniert mit den Lösungen der anderen Teilaufgaben. Dazu brauchten wir also eine Simulationsumgebung mit der wir gefundene Lösungen testen können, Lösungsverfahren für die Einzelprobleme und eine sinnvolle Methode diese Lösungen miteinander zu kombinieren.
 
 \newpage
 
 \section{Implementierungen}
 
 \subsection{Simulationsumgebung}
-Das erste was wir zu Beginn des Wettbewerbs implementiert haben, ist eine Simulationsumgebung, die anhand eines Inputs die Simulation durchführt und uns die Punktzahl und die dafür benötigten Runden zurückgibt.
+Das erste was wir zu Beginn des Wettbewerbs implementiert haben, ist eine Simulationsumgebung, die anhand einer Liste an Objekten die Simulation durchführt und uns die Punktzahl und die dafür benötigten Runden zurückgibt. (Angelehnt also an die letztendliche Abgabe unserer Lösung)
 
-Damit haben wir uns zum Einen von der \href{profit.phinau.de}{Simulation} die uns für den Wettbewerb zur Verfügung gestellt wurde unabhängig gemacht und haben eine Simulationsumgebung die um ein Vielfaches schneller ist als die Web-basierte Implementierung auf der \href{profit.phinau.de}{profit.phinau.de} Website. Ursprünglich ist die Simulationsumgebung entstanden um als Supervision für Machine-Learning basierte Methoden (z.B als Reinforcement Learning environment) zu dienen. Allerdings haben wir unseren Ansatz im Laufe des Wettbewerbs geändert. Mithilfe unserer Umgebung können wir eine gegebene Lösung im Bruchteil einer Millisekunde testen und haben ein Feedback darüber wie gut diese Lösung ist.
+Damit haben wir uns zum Einen von der \href{profit.phinau.de}{Simulation} die uns für den Wettbewerb zur Verfügung gestellt wurde unabhängig gemacht und haben eine Simulationsumgebung die um ein Vielfaches schneller ist als die Web-basierte Implementierung auf der \href{profit.phinau.de}{profit.phinau.de} Website. Ursprünglich ist die Simulationsumgebung entstanden um als Supervision für Machine-Learning basierte Methoden (z.B als Reinforcement Learning environment) zu dienen. Bei diesen wäre es natürlich sehr wichtig gewesen, dass wir ggf. tausende Inputs schnell auswerten können, um unser Model zu trainieren. Allerdings haben wir unseren Ansatz im Laufe des Wettbewerbs geändert, trotzdem war die Simulationsumgebung ein integraler Bestandteil unserer Methodik. Mithilfe unserer Umgebung können wir einen gegebenen Input im Bruchteil einer Millisekunde auswerten und haben ein Feedback darüber wie gut die platzierten Bauteile die Aufgabe lösen.
 
-Die Simulation, als auch unsere Lösung sind vollständig in Rust implementiert worden. Wir haben Rust wegen der hohen Performance und der Memory Safety für dieses Projekt gewählt. Da die Aufgabe innerhalb eines bestimmten Zeitlimits zu lösen war und wir uns mit unserem Lösungsansatz vor Allem auf die Optimierung unseres Programmcodes verlassen haben war Rust die sinnvollste Wahl. 
 %Implementierung weiter erklären
 
 \subsection{Regionen}
@@ -152,9 +153,17 @@ Nicht jede Ressource ist zur Produktion eines Produkts gleich wichtig. Wie viele
 Diese Gewichtung verwenden wir im nächsten Schritt um die Factory zu platzieren welche dann das gewünschte Produkt herstellt.
 
 \subsection{Factory platzieren}
-Zuerst werden alle Felder auf denen keine Factory platziert werden kann rausgefiltert  und auch alle Factory Platzierungen die nicht alle nötigen Ressourcen rechtzeitig erhalten würden. Danach werden die möglichen Felder mithilfe der Deposit Gewichtung in eine Rangliste gebracht. Am besten sind also Factories die folgenden Score maximieren:
+Zuerst werden alle Felder auf denen keine Factory platziert werden kann rausgefiltert  und auch alle Factory Platzierungen die nicht alle nötigen Ressourcen rechtzeitig erhalten würden. Danach werden die möglichen Felder mithilfe der Deposit Gewichtung in eine Rangliste gebracht.
+Folgende Scores werden berechnet, gewichtet und aufsummiert um eine Gesamtpunktzahl für die potenziellen Factory Positionen zu erhalten:
 
-%Formel für das Ranking
+\begin{enumerate}
+    \item Gesamtdistanz zu den Deposits
+    \item Gewichtete Distanz zu den Deposits
+    \item Differenz der Distanz zum nächsten Deposit und zum am weitesten entfernten Deposit
+    \item Abschätzung wie viele Produkte an der Factory Position hergestellt werden können 
+\end{enumerate}
+
+An dieser Stelle könnte unsere Lösung noch weiter optimiert werden um über möglichst viele Aufgaben hinweg ein besonders gutes Ranking zu erstellen. Perfekt wäre ein Ranking welches immer an erster Stelle eine "perfekte" Lösung hat. In diesem Fall wäre das also eine Factory Position mit der unsere restliche Lösung die maximale Punktzahl erreicht, die über alle Factory Positions hinweg erreicht werden kann. Vermutlich gibt es keine Gewichtung der vier oben genannten Kriterien, die für jede mögliche Aufgabe immer eine perfekte Factory an erster Stelle platziert. Allerdings kann man sich natürlich einer möglichst guten Gewichtung annähern in dem man über viele Aufgaben optimiert.
 
 \subsection{Connection Tree}
 Im nächsten Schritt passiert der Großteil unserer Lösung. Das Verbinden von Deposits und Factories mithilfe von Minen und den Verbindungsbausteinen. Wie bereits oben beschrieben basiert unsere Lösung in sehr großen Teilen möglichst effizient viele Möglichkeiten auszuprobieren und mit vielversprechenden Varianten weiter zu arbeiten. Vor Allem im Falle der Verbindungen ist dies sehr zum Tragen gekommen.
@@ -163,16 +172,20 @@ Unsere Lösung baut nach und nach einen Baum aus Minen-Platzierungen und daran g
 
 Dazu iterieren wir über zahlreiche unterschiedliche Reihenfolgen unserer Deposits die wir mit unserer Factory verbinden wollen, platzieren wenn möglich eine Mine am Deposit und versuchen diese dann mithilfe unserer Distance Map Schritt für Schritt mit der Factory zu verbinden.
 
-Eine mögliche Platzierung einer Mine wird also zu einem Unterbaum, welcher wiederum aus Unterbäumen von Verbindungsbausteinen besteht usw. Man kann die kürzesten Wege natürlich ohne viel Aufwand jederzeit finden, allerdings sind die kürzesten Wege nicht immer hilfreich, da dieser möglicherweise andere Wege oder weitere Platzierungen von Minen versperren. Wir haben uns also bewusst dagegen entschieden einfach immer den schnellsten Weg zu suchen, sondern probieren unterschiedliche Wege aus um am Ende eine möglichst hohe Gesamtpunktzahl zu erzielen.
+Eine mögliche Platzierung einer Mine wird also zu einem Unterbaum, welcher wiederum aus Unterbäumen von Verbindungsbausteinen besteht usw. Man kann die kürzesten Wege natürlich ohne viel Aufwand jederzeit finden, allerdings sind die kürzesten Wege nicht immer hilfreich, da diese möglicherweise andere Wege oder weitere Platzierungen von Minen versperren. Wir haben uns also bewusst dagegen entschieden einfach immer den schnellsten Weg zu suchen, sondern probieren unterschiedliche Wege aus um am Ende eine möglichst hohe Gesamtpunktzahl zu erzielen.
 
-
-% \section{Verworfene Ansätze}
-
-% weitere Heuristiken etc.
-%===========================================================
+%weiter ausführen 
 %===========================================================
 
 \newpage
+\section{Verwendete Technologien}
+
+\subsection{Rust}
+Unsere Lösung haben wir vollständig in Rust implementiert. Da wir vor allem auf Performance gesetzt haben und alle Komponenten soweit wie möglich optimieren wollten und unsere Lösung  natürlich innerhalb eines Zeitlimits fertig werden musste, waren Sprachen mit Garbage-Collection ausgeschlossen. Rust hat es uns ermöglicht Code zu schreiben der das vorgegebene Problem effizient und schnell löst.
+
+\subsection{GitHub}
+Wir haben GitHub zum einen natürlich für die Zusammenarbeit während des Wettbewerbs verwendet, als auch um die Möglichkeiten von GitHub Actions zu nutzen.
+
 
 \section{Softwarearchitektur}
 
