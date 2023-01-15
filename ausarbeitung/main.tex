@@ -153,7 +153,7 @@ Nicht jede Ressource ist zur Produktion eines Produkts gleich wichtig. Wie viele
 Diese Gewichtung verwenden wir im nächsten Schritt um die Factory zu platzieren welche dann das gewünschte Produkt herstellt.
 
 \subsection{Factory platzieren}
-Zuerst werden alle Felder auf denen keine Factory platziert werden kann rausgefiltert  und auch alle Factory Platzierungen die nicht alle nötigen Ressourcen rechtzeitig erhalten würden. Danach werden die möglichen Felder mithilfe der Deposit Gewichtung in eine Rangliste gebracht.
+Zuerst werden alle Felder auf denen keine Factory platziert werden kann ausgefiltert und auch alle Factory Platzierungen die nicht alle nötigen Ressourcen rechtzeitig erhalten würden. Danach werden die möglichen Felder mithilfe der Deposit Gewichtung in eine Rangliste gebracht.
 Folgende Scores werden berechnet, gewichtet und aufsummiert um eine Gesamtpunktzahl für die potenziellen Factory Positionen zu erhalten:
 
 \begin{enumerate}
@@ -163,16 +163,16 @@ Folgende Scores werden berechnet, gewichtet und aufsummiert um eine Gesamtpunktz
     \item Abschätzung wie viele Produkte an der Factory Position hergestellt werden können 
 \end{enumerate}
 
-An dieser Stelle könnte unsere Lösung noch weiter optimiert werden um über möglichst viele Aufgaben hinweg ein besonders gutes Ranking zu erstellen. Perfekt wäre ein Ranking welches immer an erster Stelle eine "perfekte" Lösung hat. In diesem Fall wäre das also eine Factory Position mit der unsere restliche Lösung die maximale Punktzahl erreicht, die über alle Factory Positions hinweg erreicht werden kann. Vermutlich gibt es keine Gewichtung der vier oben genannten Kriterien, die für jede mögliche Aufgabe immer eine perfekte Factory an erster Stelle platziert. Allerdings kann man sich natürlich einer möglichst guten Gewichtung annähern in dem man über viele Aufgaben optimiert.
+An dieser Stelle könnte unsere Lösung noch weiter optimiert werden um über möglichst viele Aufgaben hinweg ein besonders gutes Ranking zu erstellen. Perfekt wäre ein Ranking welches immer an erster Stelle eine 'perfekte' Lösung hat. In diesem Fall wäre das also eine Factory Position mit der unsere restliche Lösung die maximale Punktzahl erreicht, die über alle Factory Positions hinweg erreicht werden kann. Vermutlich gibt es keine Gewichtung der vier oben genannten Kriterien, die für jede mögliche Aufgabe immer eine perfekte Factory an erster Stelle platziert. Allerdings kann man sich natürlich einer möglichst guten Gewichtung annähern in dem man über viele Aufgaben optimiert.
 
 \subsection{Connection Tree}
 Im nächsten Schritt passiert der Großteil unserer Lösung. Das Verbinden von Deposits und Factories mithilfe von Minen und den Verbindungsbausteinen. Wie bereits oben beschrieben basiert unsere Lösung in sehr großen Teilen möglichst effizient viele Möglichkeiten auszuprobieren und mit vielversprechenden Varianten weiter zu arbeiten. Vor Allem im Falle der Verbindungen ist dies sehr zum Tragen gekommen.
 
-Unsere Lösung baut nach und nach einen Baum aus Minen-Platzierungen und daran geknüpfte Verbindungenn auf und vergleicht in jedem Schritt den jetzigen Pfad mit dem bisher "Besten". Am Besten ist ein Baustein der die Distanz zur gewünschten Factory möglichst stark minimiert. 
+Unsere Lösung baut zunächst einen Baum aus Minen-Platzierungen und daran geknüpfte Verbindungenn mit einer Suchtiefe $n$ auf. Der beste Pfad in diesem Baum wird nach der Distanz des letzen Pfadsegments zu der Factory ausgewählt. Anschließend wird das erste Pfad Segment des besten Pfades platziert und von dort aus wird ein neuer Baum mit der Suchtiefe $n$ generiert.
 
 Dazu iterieren wir über zahlreiche unterschiedliche Reihenfolgen unserer Deposits die wir mit unserer Factory verbinden wollen, platzieren wenn möglich eine Mine am Deposit und versuchen diese dann mithilfe unserer Distance Map Schritt für Schritt mit der Factory zu verbinden.
 
-Eine mögliche Platzierung einer Mine wird also zu einem Unterbaum, welcher wiederum aus Unterbäumen von Verbindungsbausteinen besteht usw. Man kann die kürzesten Wege natürlich ohne viel Aufwand jederzeit finden, allerdings sind die kürzesten Wege nicht immer hilfreich, da diese möglicherweise andere Wege oder weitere Platzierungen von Minen versperren. Wir haben uns also bewusst dagegen entschieden einfach immer den schnellsten Weg zu suchen, sondern probieren unterschiedliche Wege aus um am Ende eine möglichst hohe Gesamtpunktzahl zu erzielen.
+Bei der Implementierung wurde darauf geachtet, dass nur einmal zu Beginn ein ConnectionTree allocated wird, der Baum ist hierbei nicht Hierarchich strukturiert, sondern besteht im Grunde nur aus einem linearen Array, bestehend aus Nodes, welche die Indizes ihrer Children Nodes enthalten. Hierdurch ist die Implementierung sehr Cache-Freundlich.
 
 %weiter ausführen 
 %===========================================================
@@ -188,10 +188,21 @@ Wir haben GitHub zum einen natürlich für die Zusammenarbeit während des Wettb
 
 
 \section{Softwarearchitektur}
+Unsere Software Architektur legt Wert auf Wiederverwendbarkeit der einzelnen Komponenten. So sind die Komponenten, welche die eigentliche Logik zur Simulation und Lösung der Aufgaben, als Rust 'crates' definiert, und das CLI welches im Wettbewerb die Eingabe und Ausgabe behandelt, ruft diese bloß auf. Somit könnte ohne weitere Umstände eine GUI, oder ein Web-Server auf die gleichen Logikbausteine zurückgreifen ohne diese neu strukturieren oder kopieren zu müssen.
+
+Die einzelen 'Crates' legen viel Wert auf Data-Driven Design statt durch undurchsichtige Objekt-Strukturen, den Fluss der Daten zu verschleiern. Obwohl für einzelne Datenstrukturen Methoden benutzt wurden, meist für simplere Zugriffe oder Berechnungen, sind die eigentlich tragenden Algorithmen meist in einfachen Funktionen umgesetzt und ein Blick auf deren Signatur lässt erkennen welche Daten benötigt und zurückgegeben werden.
 
 \section{Software Testing}
+Beim Testing greifen wir auf das in Rust standardmäßig enthaltene Testing-Framework zurück. Es wurden sowohl Unit-Tests für einzelne Komponenten, als auch Integrations-Tests wie z.B. für die ganze Simulation geschrieben. Viele dieser Tests enstanden aus Bug-Hunts und verhindern Regressionen beim Refactoring des existierenden Codes. Diese Tests werden zusätzlich auf GitHub via CI Actions automatisch bei jedem 'Push' ausgeführt.
+
+\newpage
 
 \section{Coding Conventions}
+Die Coding Conventions lehnen sich hauptsächlich an die in großen Teilen der Rust-Community etablierten Standards an. So wurde zur Formattierung des Codes z.B. 'rustfmt' genutzt.
+Um mögliche Bugs durch Verwechslung zu vermeiden wurde für häufig verwendete Indizes das New-Type Pattern angwendet. Die Indizes in den Bauteil Arrays der Simulation sind ein Tupel-Struct welches einen 16bit Integer enthält, Da beim Zugreifen auf dieses Array der genaue Datentyp erfordert wird, kann es nicht zu Verwechslungen mit zu anderen Datenstrukturen zugehörigen Indizes kommen.
+Da von Anfang an Performance im Mittelpunkt stand, wurde bei allen Datentypen darauf geachtet so wenig wie möglich Speicher in Anspruch zu nehmen, um dem Compiler bei der automatischen Vektorisierung durch SIMD Instruktionen in die Hände zu spielen und die größtmögliche Menge an relevanten Daten im Cache bereitstehen zu haben. So ist der Koordinaten Datentyp nur 2 Byte groß, da dies bereits das maximal 100x100 große Spielfeld abdeckt. Ressourcen sind in einem 8-elementigen Array bestehend aus 16bit Integern gespeichert, so können simple arithmetische Operationen von zwei Resourcen-Arrays mit einer einzigen MMX Instruktion durchgeführt werden.
 
-\section{Wartbarkeit}
+\section{Fazit}
+
+Mithilfe unserer theoretischen Ansätze und unserer performanten Implementierung dieser sind wir unserer Ansicht nach zu einer sehr guten Lösung der Aufgabe gelangt. Uns sind natürlich noch immer Schwächen unserer jetzigen Lösung bewusst. Allerdings ist unsere Abgabe in der Lage für  verschiedenste Inputs eine gute Lösung bzw. teilweise auch eine optimale Lösung zu finden.
 \end{document} 
