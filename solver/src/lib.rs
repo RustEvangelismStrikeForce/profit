@@ -276,7 +276,6 @@ fn regional_connections(
 ) {
     // TODO: calculate search depth dynamically based on some heuristic using time and board size
     let search_depth = 2;
-    let mut current_sim = sim.clone();
     let mut product_iter_indices = vec![0; region_stats.len()];
 
     let mut region_iters = region_stats
@@ -315,10 +314,8 @@ fn regional_connections(
             );
             i += 1;
 
-            current_sim.clone_from(sim);
-
             let solution = connect_deposits_and_factory(
-                &mut current_sim,
+                &sim,
                 &mut tree,
                 product_stats,
                 factory_stats,

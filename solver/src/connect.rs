@@ -154,153 +154,157 @@ impl PathStats {
 }
 
 pub(crate) fn connect_deposits_and_factory(
-    sim: &mut Sim,
+    sim: &Sim,
     tree: &mut ConnectionTree,
     product_stats: &ProductStats,
     factory_stats: &FactoryStats,
     search_depth: u8,
 ) -> crate::Result<ScoredSolution> {
-    let product_type = product_stats.product_type;
-    let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
-    let factory_id = sim::place_building(sim, factory)?;
-    let distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
-    let mut ctx = Context {
-        sim,
-        distance_map,
-        tree,
-        factory_id,
-    };
 
-    let mut non_improvements = 0;
-    let mut errors = 0;
     let mut runs: Vec<ScoredSolution> = Vec::new();
-    // TODO: smarter selection order of deposits to connect
-    for (i, d) in factory_stats.deposits_in_reach.iter().cycle().enumerate() {
-        ctx.tree.clear();
-        if i % factory_stats.deposits_in_reach.len() == 0 {
-            errors = 0;
-        }
-
-        let deposit_stats = &product_stats.deposit_stats[d.idx];
-        let Building::Deposit(deposit) = &ctx.sim.buildings[deposit_stats.id] else { unreachable!("This should be a deposit") };
-        let deposit_pos = deposit.pos;
-        let deposit_width = deposit.width as i8;
-        let deposit_height = deposit.height as i8;
-
-        const MINE_CORNER_POSITIONS: u16 = 4;
-        const MINE_CORNER_CONFIGURATIONS: u16 = 3;
-        const MINE_EDGE_CONFIGURATIONS: u16 = 2;
-        let mine_edge_positions =
-            2 * deposit.width.saturating_sub(1) + 2 * deposit.height.saturating_sub(1);
-        let max_children_len = MINE_CORNER_POSITIONS * MINE_CORNER_CONFIGURATIONS
-            + mine_edge_positions as u16 * MINE_EDGE_CONFIGURATIONS;
-        let children_id = ctx.tree.alloc(max_children_len);
-        let mut children_len = 0;
-
-        let mut best = None;
-        // place a mine somewhere around the deposit
-        for x in 0..deposit_width {
-            let pos = deposit_pos + (x, -1);
-            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
-                #[rustfmt::skip]
-                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
-                cmp_and_set(&mut best, stats);
-            }
-        }
-        for y in 0..deposit_height {
-            let pos = deposit_pos + (-1, y);
-            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
-                #[rustfmt::skip]
-                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
-                cmp_and_set(&mut best, stats);
-            }
-            let pos = deposit_pos + (deposit_width, y);
-            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
-                #[rustfmt::skip]
-                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
-                cmp_and_set(&mut best, stats);
-            }
-        }
-        for x in 0..deposit_width {
-            let pos = deposit_pos + (x, deposit_height);
-            if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
-                #[rustfmt::skip]
-                let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
-                cmp_and_set(&mut best, stats);
-            }
-        }
-
-        let mut path = Vec::new();
-        let res = loop {
-            let Some((node_id, _stats)) = best else {
-                break Err(crate::Error::NoPath(
-                    deposit_stats.id,
-                    deposit_pos,
-                    factory_stats.pos,
-                ));
-            };
-            path.push(node_id);
-
-            let node = &ctx.tree[node_id];
-
-            // TODO: maybe later
-            // sim::place_building_unchecked(ctx.sim, node.building.to_building());
-            let connector_id = sim::place_building(ctx.sim, node.building.to_building())
-                .expect("connector to be valid");
-
-            match node.state {
-                State::Connected => {
-                    break Ok(ctx.sim.clone());
-                }
-                State::Merged => {
-                    break Ok(ctx.sim.clone());
-                }
-                State::Stopped => {
-                    let end_pos = node.end_pos;
-                    let end_dist = ctx.distance_map[node.end_pos].expect("should be valid");
-
-                    #[rustfmt::skip]
-                    let (state, stats) = place_children_connectors(&mut ctx, connector_id, node_id, end_pos, end_dist, search_depth);
-
-                    ctx.tree[node_id].state = state;
-                    best = stats;
-                }
-                State::Children { start, len } => {
-                    #[rustfmt::skip]
-                    let stats = continue_subtree(&mut ctx, start, len, search_depth);
-
-                    best = stats;
-                }
-            }
+    for offset in 0..factory_stats.deposits_in_reach.len() {
+        println!("{offset}");
+        let mut current_sim = sim.clone();
+        let product_type = product_stats.product_type;
+        let factory = Building::Factory(Factory::new(factory_stats.pos, product_type));
+        let factory_id = sim::place_building(&mut current_sim, factory)?;
+        let distance_map = map_distances(sim, factory_stats.pos, FACTORY_SIZE, FACTORY_SIZE);
+        let mut ctx = Context {
+            sim: &mut current_sim,
+            distance_map,
+            tree,
+            factory_id,
         };
 
-        match res {
-            Ok(sim) => {
-                let new = sim::run(&sim);
-                if let Some(last) = runs.last() {
-                    // maybe don't break immediately
-                    if new <= last.run {
-                        non_improvements += 1;
-                    } else {
-                        non_improvements = 0;
+        let mut non_improvements = 0;
+        let mut errors = 0;
+        for (i, d) in factory_stats.deposits_in_reach.iter().cycle().skip(offset).enumerate() {
+            ctx.tree.clear();
+            if i % factory_stats.deposits_in_reach.len() == 0 {
+                errors = 0;
+            }
+
+            let deposit_stats = &product_stats.deposit_stats[d.idx];
+            let Building::Deposit(deposit) = &ctx.sim.buildings[deposit_stats.id] else { unreachable!("This should be a deposit") };
+            let deposit_pos = deposit.pos;
+            let deposit_width = deposit.width as i8;
+            let deposit_height = deposit.height as i8;
+
+            const MINE_CORNER_POSITIONS: u16 = 4;
+            const MINE_CORNER_CONFIGURATIONS: u16 = 3;
+            const MINE_EDGE_CONFIGURATIONS: u16 = 2;
+            let mine_edge_positions =
+                2 * deposit.width.saturating_sub(1) + 2 * deposit.height.saturating_sub(1);
+            let max_children_len = MINE_CORNER_POSITIONS * MINE_CORNER_CONFIGURATIONS
+                + mine_edge_positions as u16 * MINE_EDGE_CONFIGURATIONS;
+            let children_id = ctx.tree.alloc(max_children_len);
+            let mut children_len = 0;
+
+            let mut best = None;
+            // place a mine somewhere around the deposit
+            for x in 0..deposit_width {
+                let pos = deposit_pos + (x, -1);
+                if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
+                    #[rustfmt::skip]
+                    let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
+                    cmp_and_set(&mut best, stats);
+                }
+            }
+            for y in 0..deposit_height {
+                let pos = deposit_pos + (-1, y);
+                if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
+                    #[rustfmt::skip]
+                    let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
+                    cmp_and_set(&mut best, stats);
+                }
+                let pos = deposit_pos + (deposit_width, y);
+                if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
+                    #[rustfmt::skip]
+                    let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
+                    cmp_and_set(&mut best, stats);
+                }
+            }
+            for x in 0..deposit_width {
+                let pos = deposit_pos + (x, deposit_height);
+                if let Some(Some(_dist)) = ctx.distance_map.get(pos) {
+                    #[rustfmt::skip]
+                    let stats = place_mines(&mut ctx, pos, children_id, &mut children_len, search_depth);
+                    cmp_and_set(&mut best, stats);
+                }
+            }
+
+            let mut path = Vec::new();
+            let res = loop {
+                let Some((node_id, _stats)) = best else {
+                    break Err(crate::Error::NoPath(
+                        deposit_stats.id,
+                        deposit_pos,
+                        factory_stats.pos,
+                    ));
+                };
+                path.push(node_id);
+
+                let node = &ctx.tree[node_id];
+
+                // TODO: maybe later
+                // sim::place_building_unchecked(ctx.sim, node.building.to_building());
+                let connector_id = sim::place_building(ctx.sim, node.building.to_building())
+                    .expect("connector to be valid");
+
+                match node.state {
+                    State::Connected => {
+                        break Ok(ctx.sim.clone());
                     }
-                    if non_improvements == 5 {
+                    State::Merged => {
+                        break Ok(ctx.sim.clone());
+                    }
+                    State::Stopped => {
+                        let end_pos = node.end_pos;
+                        let end_dist = ctx.distance_map[node.end_pos].expect("should be valid");
+
+                        #[rustfmt::skip]
+                        let (state, stats) = place_children_connectors(&mut ctx, connector_id, node_id, end_pos, end_dist, search_depth);
+
+                        ctx.tree[node_id].state = state;
+                        best = stats;
+                    }
+                    State::Children { start, len } => {
+                        #[rustfmt::skip]
+                        let stats = continue_subtree(&mut ctx, start, len, search_depth);
+
+                        best = stats;
+                    }
+                }
+            };
+
+            match res {
+                Ok(sim) => {
+                    let new = sim::run(&sim);
+                    if let Some(last) = runs.last() {
+                        // maybe don't break immediately
+                        if new <= last.run {
+                            non_improvements += 1;
+                        } else {
+                            non_improvements = 0;
+                        }
+                        if non_improvements == 5 {
+                            break;
+                        }
+                    }
+                    // print!("\x1b[1;1H\x1B[2J");
+                    println!("{:?}", sim.board);
+                    println!("{new:?}");
+
+                    runs.push(ScoredSolution { sim, run: new });
+                }
+                Err(_) => {
+                    errors += 1;
+                    if let Some(last) = runs.last() {
+                        ctx.sim.clone_from(&last.sim);
+                    }
+                    if errors == factory_stats.deposits_in_reach.len() {
                         break;
                     }
-                }
-                // print!("\x1b[1;1H\x1B[2J");
-                // println!("{:?}", sim.board);
-                // println!("{new:?}");
-
-                runs.push(ScoredSolution { sim, run: new });
-            }
-            Err(_) => {
-                errors += 1;
-                if let Some(last) = runs.last() {
-                    ctx.sim.clone_from(&last.sim);
-                }
-                if errors == factory_stats.deposits_in_reach.len() {
-                    break;
                 }
             }
         }

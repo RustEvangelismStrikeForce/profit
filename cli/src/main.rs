@@ -39,6 +39,7 @@ fn main() {
         let lock = best_solution.lock().expect("lock not to be poisoned");
         match lock.as_ref() {
             Some(solution) => {
+                println!("========================================");
                 println!("{:?}\n{:?}", solution.sim.board, solution.run);
                 println!("----------------------------------------");
                 let dto_solution = dto::Solution::from(&solution.sim);
