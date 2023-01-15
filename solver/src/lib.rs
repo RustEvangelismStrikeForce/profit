@@ -47,6 +47,7 @@ struct WeightedDist {
 #[derive(Debug)]
 struct Score {
     dist: f32,
+    middle: f32,
     weighted: f32,
     max_products: f32,
 }
@@ -118,6 +119,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                         }
 
                         let mut max = WeightedDist { dist: 0.0, weighted: 0.0 };
+                        let mut min = WeightedDist {dist: f32::MAX, weighted:f32::MAX};
                         let mut sum = WeightedDist { dist: 0.0, weighted: 0.0 };
                         let mut resources_in_reach = available_resources;
                         let mut deposits_in_reach = Vec::with_capacity(region.deposits.len());
@@ -150,12 +152,15 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
 
                             let deposit_idx = DepositIdx { idx, dist };
                             let dist = dist as f32;
-                            let weighted = 1.0 / (dist + 1.0).ln() * ds.weight;
+                            let weighted = ds.weight / (dist + 1.0);
 
                             max.dist = max.dist.max(dist);
                             max.weighted = max.dist.max(weighted);
+                            min.dist = min.dist.min(dist);
+                            min.weighted = min.dist.min(weighted);
                             sum.dist += dist;
                             sum.weighted += weighted;
+
 
                             if dist == 0.0 {
                                 return None;
@@ -179,6 +184,7 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                         let max_products = (resources_in_reach / product.resources).iter().min().unwrap_or_default() as f32;
                         let score = Score {
                             dist: 1.0 / (avg.dist + 1.0).ln() * (max.dist + 1.0).ln(),
+                            middle: 1.0 / ((max.dist - min.dist).abs() + 1000.0).ln(),
                             weighted: avg.weighted * (max.weighted + 1.0).ln(),
                             max_products: 1.0 / (max_products + 2.0).ln(),
                         };
@@ -188,31 +194,35 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                     .collect::<Vec<_>>();
 
                 // normalize score components
-                let mut min_score = Score { dist: f32::MAX, weighted: f32::MAX, max_products: f32::MAX };
-                let mut max_score = Score { dist: 0.0, weighted: 0.0, max_products: 0.0 };
+                let mut min_score = Score { dist: f32::MAX, middle: f32::MAX, weighted: f32::MAX, max_products: f32::MAX };
+                let mut max_score = Score { dist: 0.0, middle: 0.0, weighted: 0.0, max_products: 0.0 };
                 for d in factory_stats.iter() {
                     min_score.dist = min_score.dist.min(d.score.dist);
+                    min_score.middle = min_score.middle.min(d.score.middle);
                     min_score.weighted = min_score.weighted.min(d.score.weighted);
                     min_score.max_products = min_score.max_products.min(d.score.max_products);
                     max_score.dist = max_score.dist.max(d.score.dist);
+                    max_score.middle = max_score.middle.max(d.score.middle);
                     max_score.weighted = max_score.weighted.max(d.score.weighted);
                     max_score.max_products = max_score.max_products.max(d.score.max_products);
                 }
                 // increase the range by an epsilon to avoid `NaN`s when all scores are the same
                 const EPSILON: f32 = 0.001;
                 max_score.dist += EPSILON;
+                max_score.middle += EPSILON;
                 max_score.weighted += EPSILON;
                 max_score.max_products += EPSILON;
                 factory_stats.iter_mut().for_each(|d| {
                     d.score.dist = (d.score.dist - min_score.dist) / (max_score.dist - min_score.dist);
+                    d.score.middle = (d.score.middle - min_score.middle) / (max_score.middle - min_score.middle);
                     d.score.weighted = (d.score.weighted - min_score.weighted) / (max_score.weighted - min_score.weighted);
                     d.score.max_products = (d.score.max_products - min_score.max_products) / (max_score.max_products - min_score.max_products);
                 });
 
                 // rank by score
                 factory_stats.sort_by(|f1, f2| {
-                    let score1 = f1.score.dist + f1.score.weighted + f1.score.max_products;
-                    let score2 = f2.score.dist + f2.score.weighted + f2.score.max_products;
+                    let score1 = f1.score.dist + f1.score.middle + f1.score.weighted + f1.score.max_products;
+                    let score2 = f2.score.dist + f2.score.middle + f2.score.weighted + f2.score.max_products;
                     score2.total_cmp(&score1)
                 });
 
@@ -242,9 +252,10 @@ pub fn solve(sim: &Sim) -> crate::Result<(Sim, SimRun)> {
                     current_sim.clone_from(sim);
 
                     println!(
-                        "{}: {:16}, {:16}, {:16}",
+                        "{}: {:16}, {:16}, {:16} {:16}",
                         factory_stats.pos,
                         factory_stats.score.dist,
+                        factory_stats.score.middle,
                         factory_stats.score.weighted,
                         factory_stats.score.max_products
                     );
