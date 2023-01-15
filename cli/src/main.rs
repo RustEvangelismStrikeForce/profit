@@ -12,7 +12,6 @@ fn main() {
 
     let task: dto::Task = serde_json::from_str(&input).expect("valid task input format");
     let sim = Sim::try_from(&task).expect("task input to be valid");
-    println!("{sim:?}");
 
     let best_solution = Mutex::new(None);
 
@@ -39,16 +38,12 @@ fn main() {
         let lock = best_solution.lock().expect("lock not to be poisoned");
         match lock.as_ref() {
             Some(solution) => {
-                println!("========================================");
-                println!("{:?}\n{:?}", solution.sim.board, solution.run);
-                println!("----------------------------------------");
                 let dto_solution = dto::Solution::from(&solution.sim);
                 let mut stdout = std::io::stdout();
                 serde_json::to_writer(&mut stdout, &dto_solution)
                     .expect("at this point we're fucked");
-                println!("----------------------------------------");
             }
-            None => println!("No solution"),
+            None => (),
         };
         // let go of the lock so that the combiner doesn't run into a dead lock
         drop(lock);

@@ -284,7 +284,6 @@ fn regional_connections(
     start: Instant,
 ) {
     'outer: for search_depth in 2..=255 {
-        println!("search_depth {search_depth}");
         let mut product_iter_indices = vec![0; region_stats.len()];
 
         let mut region_iters = region_stats
@@ -297,7 +296,6 @@ fn regional_connections(
             })
             .collect::<Vec<_>>();
 
-        let mut i = 0;
         let mut tree = ConnectionTree::new();
         loop {
             // TODO: try out some combinations of factories producing different products and rank those
@@ -312,16 +310,6 @@ fn regional_connections(
                     product_iter_indices[region_idx] += 1;
                     continue;
                 };
-
-                println!(
-                    "{i:4} {}: {:16}, {:16}, {:16} {:16}",
-                    factory_stats.pos,
-                    factory_stats.score.dist,
-                    factory_stats.score.middle,
-                    factory_stats.score.weighted,
-                    factory_stats.score.max_products
-                );
-                i += 1;
 
                 let solution = connect_deposits_and_factory(
                     sim,
@@ -338,13 +326,13 @@ fn regional_connections(
                 }
             }
 
-            if all_done {
-                break;
-            }
-
             let now = Instant::now();
             if (now - start).as_secs_f32() > sim.time {
                 break 'outer;
+            }
+
+            if all_done {
+                break;
             }
         }
     }

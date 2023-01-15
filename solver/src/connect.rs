@@ -160,7 +160,6 @@ pub(crate) fn connect_deposits_and_factory(
     factory_stats: &FactoryStats,
     search_depth: u8,
 ) -> crate::Result<ScoredSolution> {
-
     let mut runs: Vec<ScoredSolution> = Vec::new();
     for offset in 0..factory_stats.deposits_in_reach.len() {
         let mut current_sim = sim.clone();
@@ -177,7 +176,13 @@ pub(crate) fn connect_deposits_and_factory(
 
         let mut non_improvements = 0;
         let mut errors = 0;
-        for (i, d) in factory_stats.deposits_in_reach.iter().cycle().skip(offset).enumerate() {
+        for (i, d) in factory_stats
+            .deposits_in_reach
+            .iter()
+            .cycle()
+            .skip(offset)
+            .enumerate()
+        {
             ctx.tree.clear();
             if i % factory_stats.deposits_in_reach.len() == 0 {
                 errors = 0;
