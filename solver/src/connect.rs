@@ -246,8 +246,6 @@ pub(crate) fn connect_deposits_and_factory(
 
                 let node = &ctx.tree[node_id];
 
-                // TODO: maybe later
-                // sim::place_building_unchecked(ctx.sim, node.building.to_building());
                 let connector_id = sim::place_building(ctx.sim, node.building.to_building())
                     .expect("connector to be valid");
 
@@ -346,8 +344,6 @@ fn continue_subtree(
                 let end_pos = node.end_pos;
                 let end_dist = ctx.distance_map[node.end_pos].expect("should be valid");
 
-                // TODO: maybe later
-                // let building_id = sim::place_building_unchecked(ctx.sim, node.building.to_building());
                 let building_id = sim::place_building(ctx.sim, node.building.to_building()).ok()?;
 
                 #[rustfmt::skip]
@@ -359,8 +355,6 @@ fn continue_subtree(
                 ctx.tree[node_id].state = state;
             }
             State::Children { start, len } => {
-                // TODO: maybe later
-                // let building_id = sim::place_building_unchecked(ctx.sim, node.building.to_building());
                 let building_id = sim::place_building(ctx.sim, node.building.to_building()).ok()?;
 
                 #[rustfmt::skip]
