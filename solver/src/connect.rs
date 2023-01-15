@@ -13,12 +13,12 @@ mod test;
 
 struct Context<'a> {
     sim: &'a mut Sim,
-    tree: ConnectionTree,
+    tree: &'a mut ConnectionTree,
     distance_map: DistanceMap,
     factory_id: Id,
 }
 
-struct ConnectionTree {
+pub struct ConnectionTree {
     nodes: Vec<ConnectionTreeNode>,
 }
 
@@ -41,6 +41,10 @@ impl ConnectionTree {
         Self { nodes: Vec::new() }
     }
 
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+    }
+
     /// reserves size slots, and returns the starting index
     pub fn alloc(&mut self, size: u16) -> ChildrenId {
         let len = self.nodes.len();
@@ -57,7 +61,7 @@ fn increment_id(children_id: ChildrenId, len: &mut u16) -> NodeId {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct ChildrenId(u32);
+pub struct ChildrenId(u32);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct NodeId(u32);
@@ -151,6 +155,7 @@ impl PathStats {
 
 pub(crate) fn connect_deposits_and_factory(
     sim: &mut Sim,
+    tree: &mut ConnectionTree,
     product_stats: &ProductStats,
     factory_stats: &FactoryStats,
     search_depth: u8,
@@ -162,7 +167,7 @@ pub(crate) fn connect_deposits_and_factory(
     let mut ctx = Context {
         sim,
         distance_map,
-        tree: ConnectionTree::new(),
+        tree,
         factory_id,
     };
 
@@ -171,7 +176,7 @@ pub(crate) fn connect_deposits_and_factory(
     let mut runs: Vec<ScoredSolution> = Vec::new();
     // TODO: smarter selection order of deposits to connect
     for (i, d) in factory_stats.deposits_in_reach.iter().cycle().enumerate() {
-        ctx.tree = ConnectionTree::new();
+        ctx.tree.clear();
         if i % factory_stats.deposits_in_reach.len() == 0 {
             errors = 0;
         }

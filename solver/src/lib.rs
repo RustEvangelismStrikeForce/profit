@@ -291,6 +291,7 @@ fn regional_connections(
         .collect::<Vec<_>>();
 
     let mut i = 0;
+    let mut tree = ConnectionTree::new();
     loop {
         // TODO: try out some combinations of factories producing different products and rank those
         // combinations
@@ -319,6 +320,7 @@ fn regional_connections(
 
             let solution = connect_deposits_and_factory(
                 &mut current_sim,
+                &mut tree,
                 product_stats,
                 factory_stats,
                 search_depth,
