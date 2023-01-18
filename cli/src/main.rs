@@ -1,3 +1,4 @@
+use std::io::Write as _;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -42,6 +43,7 @@ fn main() {
                 let mut stdout = std::io::stdout();
                 serde_json::to_writer(&mut stdout, &dto_solution)
                     .expect("at this point we're fucked");
+                stdout.write_all(b"\n").expect("stdio to be writable");
             }
             None => (),
         };
