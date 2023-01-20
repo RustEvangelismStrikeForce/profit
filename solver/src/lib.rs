@@ -93,7 +93,7 @@ fn regional_connections(
             }
 
             let now = Instant::now();
-            if (now - start).as_secs_f32() > sim.time {
+            if (now - start).as_secs_f32() > sim.time - 0.1 {
                 break 'outer;
             }
 

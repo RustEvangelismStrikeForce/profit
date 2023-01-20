@@ -19,7 +19,7 @@ fn main() {
     std::thread::scope(|s| {
         let (connect_handle, combine_handle) = solver::solve(&sim, s, &best_solution, start);
 
-        let safety_solution_submit_duration = Duration::from_secs_f32(0.2);
+        let safety_solution_submit_duration = Duration::from_secs_f32(0.1);
         let sim_time_limit = Duration::from_secs_f32(sim.time) - safety_solution_submit_duration;
 
         loop {
