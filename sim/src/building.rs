@@ -30,6 +30,7 @@ impl Sim {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Buildings {
+    pub next_idx: Option<u16>,
     pub values: Vec<Option<Building>>,
 }
 
@@ -53,16 +54,28 @@ impl std::ops::IndexMut<Id> for Buildings {
 
 impl Buildings {
     pub fn remove(&mut self, id: Id) -> Building {
-        self.values[id.0 as usize]
+        let val = self.values[id.0 as usize]
             .take()
-            .expect("Expected building")
+            .expect("Expected building");
+
+        self.next_idx = match self.next_idx {
+            Some(idx) if idx < id.0 => Some(idx),
+            Some(_) => Some(id.0),
+            None => Some(id.0),
+        };
+
+        val
     }
 
     pub fn push(&mut self, value: Building) -> Id {
-        match self.values.iter().position(|b| b.is_none()) {
-            Some(id) => {
-                self.values[id] = Some(value);
-                Id(id as u16)
+        match self.next_idx {
+            Some(idx) => {
+                self.values[idx as usize] = Some(value);
+                self.next_idx = self.values[idx as usize + 1..]
+                    .iter()
+                    .position(|v| v.is_none())
+                    .map(|i| idx + 1 + i as u16);
+                Id(idx)
             }
             None => {
                 let id = Id(self.values.len() as u16);
